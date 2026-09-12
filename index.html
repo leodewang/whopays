@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Who Pays? 🍽️</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+:root{
+  --bg:#0f0e17;
+  --surface:#1e1d2e;
+  --surface2:#2a2840;
+  --border:#3c3a58;
+  --text:#fffffe;
+  --muted:rgba(255,255,255,.5);
+  --primary:#ff6b35;
+  --secondary:#4ecdc4;
+  --accent:#ffe66d;
+  --danger:#ff4444;
+  --success:#51cf66;
+  --croc:#3d8b32;
+  --croc-hi:#5ab04f;
+}
+
+body{
+  font-family:'Nunito',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+.fredoka{font-family:'Fredoka One',cursive;letter-spacing:.02em}
+
+/* ── SCREENS ── */
+.screen{display:none;min-height:100vh;flex-direction:column;align-items:center;padding:28px 20px 60px}
+.screen.active{display:flex;animation:fadeUp .28s ease}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes popIn{0%{transform:scale(.8);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@keyframes shake{0%,100%{transform:none}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+@keyframes snapDown{0%{transform:none}35%{transform:translateY(22px) scaleY(.55)}65%{transform:translateY(-3px)}100%{transform:none}}
+
+/* ── BUTTONS ── */
+.btn{
+  font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;
+  padding:14px 28px;border:none;border-radius:16px;cursor:pointer;
+  transition:transform .1s,box-shadow .15s;letter-spacing:.02em;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  text-decoration:none;
+}
+.btn:active{transform:scale(.95)}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 4px 18px rgba(255,107,53,.35)}
+.btn-primary:hover{box-shadow:0 6px 26px rgba(255,107,53,.5)}
+.btn-secondary{background:var(--secondary);color:var(--bg);box-shadow:0 4px 18px rgba(78,205,196,.3)}
+.btn-accent{background:var(--accent);color:var(--bg)}
+.btn-ghost{background:var(--surface);color:var(--text);border:2px solid var(--border)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-lg{padding:18px 40px;font-size:1.15rem;border-radius:20px}
+.btn-sm{padding:8px 18px;font-size:.85rem;border-radius:12px}
+.btn-full{width:100%;max-width:400px}
+.btn-row{display:flex;flex-direction:column;gap:12px;width:100%;max-width:380px;margin-top:24px}
+
+/* ── SETUP ── */
+.logo{font-family:'Fredoka One',cursive;font-size:3.6rem;color:var(--primary);margin-top:12px;text-align:center;line-height:1}
+.logo-sub{color:var(--muted);font-size:.95rem;margin-bottom:32px;text-align:center;font-weight:600}
+
+.player-list{width:100%;max-width:400px;margin-bottom:10px}
+.player-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;animation:fadeUp .2s ease}
+.player-num{width:38px;height:38px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.player-row input{
+  flex:1;background:var(--surface);border:2px solid var(--border);border-radius:12px;
+  padding:12px 14px;color:var(--text);font-family:'Nunito',sans-serif;
+  font-size:1rem;font-weight:700;outline:none;transition:border-color .2s;
+}
+.player-row input:focus{border-color:var(--secondary)}
+.player-row input::placeholder{color:var(--muted);font-weight:400}
+.remove-btn{background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;padding:4px;transition:color .2s;line-height:1}
+.remove-btn:hover{color:var(--danger)}
+.add-btn{
+  width:100%;max-width:400px;background:transparent;border:2px dashed var(--border);
+  color:var(--muted);font-family:'Nunito',sans-serif;font-weight:700;
+  font-size:.95rem;padding:12px;border-radius:12px;cursor:pointer;
+  margin-bottom:24px;transition:all .2s;
+}
+.add-btn:hover{border-color:var(--secondary);color:var(--secondary)}
+
+/* ── LOBBY ── */
+.players-strip{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px;max-width:400px}
+.player-chip{background:var(--surface);border:2px solid var(--border);border-radius:100px;padding:6px 14px;font-size:.9rem;font-weight:700}
+.game-list{width:100%;max-width:400px;display:flex;flex-direction:column;gap:12px}
+.game-card{
+  background:var(--surface);border-radius:20px;padding:18px 20px;
+  cursor:pointer;transition:transform .15s,border-color .15s;
+  border:2px solid transparent;display:flex;align-items:center;gap:16px;
+}
+.game-card:hover{transform:translateY(-2px);border-color:var(--border)}
+.game-card:active{transform:scale(.97)}
+.game-icon{font-size:2.8rem;flex-shrink:0}
+.game-info{flex:1}
+.game-title{font-family:'Fredoka One',cursive;font-size:1.3rem;margin-bottom:2px}
+.game-desc{color:var(--muted);font-size:.85rem;line-height:1.4}
+.game-tag{display:inline-block;font-size:.72rem;font-weight:800;padding:3px 10px;border-radius:100px;margin-top:8px;text-transform:uppercase;letter-spacing:.05em}
+.tag-luck{background:rgba(255,107,53,.18);color:var(--primary)}
+.tag-skill{background:rgba(78,205,196,.18);color:var(--secondary)}
+
+/* ── TURN BAR ── */
+.turn-bar{background:var(--surface);border-radius:16px;padding:12px 20px;text-align:center;width:100%;max-width:400px;margin-bottom:20px}
+.turn-label{color:var(--muted);font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em}
+.turn-name{font-family:'Fredoka One',cursive;font-size:1.9rem;color:var(--accent);line-height:1.1}
+
+/* ── CROC GAME ── */
+.croc-outer{width:100%;max-width:380px}
+
+.croc-upper{
+  background:var(--croc);
+  border-radius:22px 22px 0 0;
+  padding:14px 14px 0;
+  box-shadow:inset 0 -3px 0 rgba(0,0,0,.25);
+  transform-origin:top center;
+}
+.croc-upper.snapping{animation:snapDown .5s ease forwards}
+
+.croc-top-row{
+  background:var(--croc-hi);
+  border-radius:16px 16px 0 0;
+  padding:10px 18px 10px;
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:8px;
+}
+.croc-center{font-family:'Fredoka One',cursive;font-size:1rem;color:rgba(255,255,255,.7);text-align:center;flex:1}
+.eye{width:26px;height:26px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.25);flex-shrink:0}
+.eye::after{content:'';width:11px;height:11px;background:#111;border-radius:50%}
+
+.teeth-row-upper{display:flex;justify-content:center;flex-wrap:wrap;gap:3px;padding:0 6px}
+
+.tooth-btn{
+  background:none;border:none;cursor:pointer;padding:2px 1px;
+  transition:transform .1s;outline:none;
+  flex:1;min-width:26px;max-width:42px;
+}
+.tooth-btn:active:not(:disabled){transform:scale(.88)}
+.tooth-btn:disabled{cursor:not-allowed}
+
+.tooth-shape{
+  width:100%;padding-bottom:130%;
+  background:#f5f0e8;
+  clip-path:polygon(14% 0%,86% 0%,93% 100%,7% 100%);
+  transition:background .12s;
+  box-shadow:0 2px 4px rgba(0,0,0,.12);
+  position:relative;
+}
+.tooth-btn:hover:not(:disabled) .tooth-shape{background:#ddd8cc}
+.tooth-btn.pulled .tooth-shape{background:rgba(255,100,100,.15)}
+.tooth-btn.bad-reveal .tooth-shape{background:#ff4444!important}
+
+.croc-lower{
+  background:#2e6826;
+  border-radius:0 0 20px 20px;
+  padding:6px 14px 14px;
+  box-shadow:0 8px 28px rgba(0,0,0,.35);
+}
+.teeth-row-lower{display:flex;justify-content:center;flex-wrap:wrap;gap:3px;margin-bottom:4px}
+.lower-tooth{
+  flex:1;min-width:20px;max-width:32px;
+  height:24px;
+  background:#f0ebe0;
+  clip-path:polygon(8% 0%,92% 0%,86% 100%,14% 100%);
+  opacity:.55;
+}
+
+.teeth-config{
+  display:flex;align-items:center;gap:12px;
+  background:var(--surface);border-radius:12px;padding:10px 16px;
+  margin-bottom:14px;width:100%;max-width:380px;
+}
+.teeth-config label{color:var(--muted);font-size:.85rem;font-weight:700;white-space:nowrap}
+.teeth-config input[type=range]{flex:1;accent-color:var(--primary);cursor:pointer}
+.teeth-count{font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--primary);min-width:24px;text-align:center}
+
+.croc-status{text-align:center;margin-top:14px;font-size:.9rem;color:var(--muted);font-weight:700;width:100%;max-width:380px;min-height:20px}
+
+/* ── REACTION GAME ── */
+.reaction-zone{
+  width:100%;max-width:380px;border-radius:24px;min-height:280px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;gap:14px;border:3px solid var(--border);
+  background:var(--surface);transition:background .12s,border-color .12s,box-shadow .12s;
+  user-select:none;
+}
+.reaction-zone.state-waiting{background:var(--surface2);animation:pulse 1.8s infinite;border-color:var(--border)}
+.reaction-zone.state-red{background:var(--danger);border-color:var(--danger);box-shadow:0 0 40px rgba(255,68,68,.45);animation:none}
+.reaction-zone.state-green{background:var(--success);border-color:var(--success);box-shadow:0 0 50px rgba(81,207,102,.55);animation:none}
+.reaction-zone.state-done{background:var(--surface2);border-color:var(--border);cursor:default;animation:none}
+
+.reaction-emoji{font-size:4.5rem;line-height:1}
+.reaction-big{font-family:'Fredoka One',cursive;font-size:2.6rem;text-align:center;line-height:1}
+.reaction-hint{color:rgba(255,255,255,.7);font-size:.9rem;font-weight:700;text-align:center;padding:0 20px}
+
+.reaction-scoreboard{width:100%;max-width:380px;display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.score-row{
+  background:var(--surface);border-radius:12px;padding:12px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.score-row.loser-row{background:rgba(255,68,68,.18);border:1.5px solid var(--danger)}
+.score-name{font-weight:700;font-size:1rem}
+.score-time{font-family:'Fredoka One',cursive;font-size:1.2rem;color:var(--secondary)}
+.score-time.bad{color:var(--danger)}
+
+/* ── CARDS GAME ── */
+.cards-area{width:100%;max-width:400px;display:flex;flex-direction:column;gap:10px}
+.card-row{
+  background:var(--surface);border-radius:16px;padding:14px 18px;
+  display:flex;align-items:center;justify-content:space-between;
+  cursor:pointer;transition:transform .1s,border-color .15s;
+  border:2px solid transparent;
+}
+.card-row:hover:not(.drawn){border-color:var(--border);transform:translateY(-1px)}
+.card-row:active:not(.drawn){transform:scale(.98)}
+.card-row.drawn{cursor:default}
+.card-row.loser-card{border-color:var(--danger)!important;background:rgba(255,68,68,.12)}
+.card-row.winner-card{border-color:var(--success)!important}
+.card-player-name{font-weight:700;font-size:1rem}
+
+.card-back{
+  width:54px;height:74px;background:var(--surface2);border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:1.8rem;
+  border:2px solid var(--border);flex-shrink:0;
+}
+.card-face{
+  width:54px;height:74px;border-radius:9px;flex-shrink:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:#fff;border:2px solid #ddd;animation:popIn .2s ease;
+  line-height:1.1;
+}
+.card-rank{font-size:1.4rem;font-weight:900}
+.card-suit{font-size:1.1rem}
+.red-card{color:#d00}
+.black-card{color:#111}
+
+.cards-hint{color:var(--muted);font-size:.9rem;font-weight:700;text-align:center;margin-bottom:6px}
+
+/* ── ELIMINATION ── */
+.elim-emoji{font-size:6rem;animation:popIn .4s ease;margin-top:16px}
+.elim-title{font-size:2rem;text-align:center;color:var(--danger);margin-top:8px}
+.elim-name{font-size:3.2rem;color:var(--accent);text-align:center}
+.elim-msg{color:var(--muted);text-align:center;font-size:.95rem;font-weight:600;max-width:360px;line-height:1.5}
+
+/* ── FINAL RESULT ── */
+.result-crown{font-size:5.5rem;animation:popIn .5s ease;margin-top:20px}
+.result-label{color:var(--muted);font-size:1rem;font-weight:700;text-align:center}
+.result-name{font-size:3.5rem;color:var(--primary);text-align:center;animation:pulse 2s infinite}
+.result-msg{
+  background:var(--surface);border-radius:16px;padding:16px 22px;
+  text-align:center;font-size:1rem;font-weight:700;
+  max-width:360px;margin-top:8px;line-height:1.5;color:var(--muted);
+}
+
+/* ── BACK BUTTON ── */
+#backBtn{
+  position:fixed;top:14px;left:14px;z-index:200;
+  background:var(--surface);border:2px solid var(--border);
+  color:var(--text);border-radius:12px;padding:8px 14px;
+  font-family:'Nunito',sans-serif;font-weight:700;font-size:.88rem;
+  cursor:pointer;display:none;align-items:center;gap:6px;
+  box-shadow:0 2px 12px rgba(0,0,0,.3);
+}
+#backBtn.show{display:flex}
+
+/* ── FLASH OVERLAY ── */
+#flashOverlay{
+  position:fixed;inset:0;pointer-events:none;z-index:500;
+  opacity:0;transition:opacity .12s;
+}
+/* Comfortable phone controls and long names. */
+.screen{padding-top:72px;width:100%}
+.player-row input,.game-info,.teeth-config input{min-width:0}
+.player-chip,.turn-name,.elim-name,.result-name,.score-name,.card-player-name{overflow-wrap:anywhere;min-width:0;max-width:100%}
+.score-row,.card-row{gap:12px}.score-time{flex-shrink:0}
+.tooth-btn{min-width:44px;min-height:44px;max-width:48px}
+.remove-btn{min-width:44px;min-height:44px}
+.game-card:focus-visible,.card-row:focus-visible,.reaction-zone:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+#muteBtn{position:fixed;right:14px;top:14px;z-index:200;min-height:44px}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<button id="backBtn" onclick="goBack()">← Back</button>
+<button class="btn btn-ghost btn-sm" id="muteBtn" onclick="toggleMute()" aria-pressed="false">Sound on</button>
+<div id="flashOverlay"></div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 1 · SETUP                           -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen active" id="screen-setup">
+  <h1 class="logo">Who Pays? 🍽️</h1>
+  <p class="logo-sub">The dinner bill decider. No arguments. Just vibes.</p>
+
+  <div class="player-list" id="playerList"></div>
+  <button class="add-btn" onclick="addPlayer()">＋ Add Player</button>
+
+  <button class="btn btn-primary btn-lg btn-full" onclick="goToLobby()">
+    Let's Go 🎲
+  </button>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 2 · LOBBY                           -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="screen-lobby">
+  <h2 class="fredoka" style="font-size:2rem;margin-bottom:4px">Pick a Game</h2>
+  <p style="color:var(--muted);font-size:.9rem;margin-bottom:18px;font-weight:600">Whoever loses… pays! 💸</p>
+
+  <div class="players-strip" id="playersStrip"></div>
+  <button class="btn btn-ghost btn-sm" style="margin-bottom:18px" onclick="showScreen('screen-setup')">Edit players</button>
+
+  <div class="game-list">
+    <div class="game-card" role="button" tabindex="0" onclick="startCroc()">
+      <div class="game-icon">🐊</div>
+      <div class="game-info">
+        <div class="game-title">Croc Roulette</div>
+        <div class="game-desc">Pick a tooth. Pray it's not the cursed one.</div>
+        <span class="game-tag tag-luck">🎰 Luck</span>
+      </div>
+    </div>
+
+    <div class="game-card" role="button" tabindex="0" onclick="startReaction()">
+      <div class="game-icon">⚡</div>
+      <div class="game-info">
+        <div class="game-title">Reaction Duel</div>
+        <div class="game-desc">Wait for green. Tap fast. Slowest one pays.</div>
+        <span class="game-tag tag-skill">🧠 Skill</span>
+      </div>
+    </div>
+
+    <div class="game-card" role="button" tabindex="0" onclick="startCards()">
+      <div class="game-icon">🃏</div>
+      <div class="game-info">
+        <div class="game-title">Card Draw</div>
+        <div class="game-desc">Draw a card. Lowest card buys dinner.</div>
+        <span class="game-tag tag-luck">🎰 Luck</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 3 · CROC GAME                       -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="screen-croc">
+  <div class="turn-bar">
+    <div class="turn-label">It's your turn</div>
+    <div class="turn-name fredoka" id="crocTurnName">—</div>
+  </div>
+
+  <div class="teeth-config" id="teethConfig">
+    <label for="teethSlider">Teeth</label>
+    <input type="range" id="teethSlider" min="10" max="20" value="15"
+           oninput="onTeethSlider(this.value)">
+    <span class="teeth-count" id="teethCountDisplay">15</span>
+  </div>
+
+  <div class="croc-outer">
+    <div class="croc-upper" id="crocUpper">
+      <div class="croc-top-row">
+        <div class="eye"></div>
+        <div class="croc-center">🐊 Pick a tooth!</div>
+        <div class="eye"></div>
+      </div>
+      <div class="teeth-row-upper" id="upperTeeth"></div>
+    </div>
+    <div class="croc-lower">
+      <div class="teeth-row-lower" id="lowerTeeth"></div>
+    </div>
+  </div>
+
+  <div class="croc-status" id="crocStatus">15 teeth remaining</div>
+  <button class="btn btn-ghost btn-sm" style="margin-top:20px" onclick="resetCroc()">🔄 Reset</button>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 4 · REACTION GAME                   -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="screen-reaction">
+  <div class="turn-bar" id="reactionTurnBar">
+    <div class="turn-label">Contestant</div>
+    <div class="turn-name fredoka" id="reactionTurnName">—</div>
+  </div>
+
+  <div class="reaction-zone state-idle" id="reactionZone" role="button" tabindex="0" onclick="onReactionTap()">
+    <div class="reaction-emoji" id="reactionEmoji">👆</div>
+    <div class="reaction-big" id="reactionBig">Tap to Start</div>
+    <div class="reaction-hint" id="reactionHint">When it's your turn</div>
+  </div>
+
+  <div class="reaction-scoreboard" id="reactionScoreboard" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 5 · CARDS GAME                      -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="screen-cards">
+  <h2 class="fredoka" style="font-size:1.9rem;margin-bottom:6px">🃏 Card Draw</h2>
+  <p class="cards-hint" id="cardsHint">Tap your name to draw your card!</p>
+  <div class="cards-area" id="cardsArea"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 6 · ELIMINATION                     -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="screen-elim" style="justify-content:center;text-align:center;gap:10px">
+  <div class="elim-emoji" id="elimEmoji">😬</div>
+  <h2 class="fredoka elim-title" id="elimTitle">Game Over!</h2>
+  <h1 class="fredoka elim-name" id="elimName">—</h1>
+  <p class="elim-msg" id="elimMsg">—</p>
+
+  <div class="btn-row">
+    <button class="btn btn-primary btn-full" onclick="showScreen('screen-lobby')">
+      🎲 Play Another Game
+    </button>
+    <button class="btn btn-ghost btn-full" onclick="showFinalResult()">
+      🍽️ That's the bill-payer
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 7 · FINAL RESULT                    -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="screen-result" style="justify-content:center;gap:10px">
+  <div class="result-crown">👑</div>
+  <p class="result-label">Tonight's bill goes to…</p>
+  <h1 class="fredoka result-name" id="finalName">—</h1>
+  <div class="result-msg" id="finalMsg">—</div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary btn-full" onclick="goToLobby()">🍽️ New Round</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  AUDIO ENGINE
+// ─────────────────────────────────────────────
+let audioCtx;
+function readSetting(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function saveSetting(key,value) { try { localStorage.setItem(key,value); } catch {} }
+let muted = readSetting('whopays-muted') === 'true';
+function updateMute() {
+ const button = document.getElementById('muteBtn');
+ button.textContent = muted ? 'Sound off' : 'Sound on';
+ button.setAttribute('aria-pressed', String(muted));
+}
+function toggleMute() { muted = !muted; saveSetting('whopays-muted',String(muted)); updateMute(); if (!muted) getCtx(); }
+document.addEventListener('click', () => { if (!muted) getCtx(); }, true);
+document.addEventListener('keydown', event => {
+ if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('[role="button"]')) {
+  event.preventDefault(); event.target.click();
+ }
+});
+function getCtx() {
+  try {
+    const Audio = window.AudioContext || window.webkitAudioContext;
+    if (!Audio) return null;
+    if (!audioCtx) audioCtx = new Audio();
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    return audioCtx;
+  } catch { return null; }
+}
+
+function tone(freq, type, dur, gain, delay = 0) {
+  if (muted) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const g   = ctx.createGain();
+  osc.connect(g); g.connect(ctx.destination);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+  g.gain.setValueAtTime(gain, ctx.currentTime + delay);
+  g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + dur);
+  osc.start(ctx.currentTime + delay);
+  osc.stop(ctx.currentTime + delay + dur + 0.01);
+}
+
+const snd = {
+  snap()    { tone(800,'sawtooth',.08,.45); tone(380,'sawtooth',.14,.5,.06); tone(180,'square',.22,.4,.12); },
+  safe()    { tone(520,'sine',.1,.18); tone(660,'sine',.1,.18,.08); },
+  go()      { tone(880,'sine',.12,.4); tone(1100,'sine',.15,.4,.09); },
+  flip()    { tone(650,'triangle',.09,.22); tone(820,'triangle',.09,.18,.06); },
+  win()     { [523,659,784,1047].forEach((f,i)=>tone(f,'sine',.25,.28,i*.1)); },
+  lose()    { tone(300,'sawtooth',.12,.3); tone(240,'sawtooth',.16,.3,.1); tone(190,'sawtooth',.22,.3,.2); },
+  click()   { tone(440,'sine',.05,.12); },
+};
+
+// ─────────────────────────────────────────────
+//  GLOBAL STATE
+// ─────────────────────────────────────────────
+const EMOJIS = ['🍕','🍔','🌮','🍜','🍣','🍖','🥗','🍰'];
+const FUN_MSGS = [
+  n => `${n}'s wallet just called. It's saying goodbye. 💸`,
+  n => `Luck wasn't on ${n}'s side tonight. Time to pay up! 💳`,
+  n => `${n} carries the burden of dinner. We salute you. 🫡`,
+  n => `The dinner gods have spoken. ${n} pays. No arguing! 🍽️`,
+  n => `${n} is the chosen one… for paying the bill! 👑`,
+  n => `Better luck next time, ${n}. Or bring cash. 💵`,
+];
+
+let players  = []; // [{name}]
+let loserName = '';
+
+function pname(i) { return players[i].name.trim() || `Player ${i + 1}`; }
+function rnd(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function esc(s)   { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─────────────────────────────────────────────
+//  SCREEN NAVIGATION
+// ─────────────────────────────────────────────
+let backTarget = 'screen-lobby';
+// Every delayed game transition belongs to the current screen/round.
+const pendingTimers = new Set();
+function later(fn, delay) {
+ const id = window.setTimeout(() => { pendingTimers.delete(id); fn(); }, delay);
+ pendingTimers.add(id); return id;
+}
+function cancelPending() {
+ pendingTimers.forEach(id => window.clearTimeout(id)); pendingTimers.clear();
+ document.getElementById('flashOverlay').style.opacity = '0';
+}
+
+function showScreen(id) {
+  cancelPending();
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+  const needsBack = !['screen-setup','screen-lobby','screen-result'].includes(id);
+  const btn = document.getElementById('backBtn');
+  btn.className = needsBack ? 'show' : '';
+}
+
+function goBack() { showScreen(backTarget); }
+
+// ─────────────────────────────────────────────
+//  PLAYER SETUP
+// ─────────────────────────────────────────────
+function addPlayer(name = '') {
+  if (players.length >= 8) return;
+  players.push({ name });
+  renderSetup();
+  savePlayers();
+}
+
+function removePlayer(i) {
+  if (players.length <= 2) return;
+  players.splice(i, 1);
+  renderSetup();
+  savePlayers();
+}
+
+function savePlayers() { saveSetting('whopays-players',JSON.stringify(players.map(p => p.name))); }
+function renderSetup() {
+  document.getElementById('playerList').innerHTML = players.map((p, i) => `
+    <div class="player-row">
+      <div class="player-num">${EMOJIS[i]}</div>
+      <input
+        type="text" maxlength="40" aria-label="Player ${i + 1} name" autocomplete="off" autocorrect="off" spellcheck="false"
+        placeholder="Player ${i + 1}" value="${esc(p.name)}"
+        oninput="players[${i}].name = this.value; savePlayers()"
+      >
+      ${players.length > 2 ? `<button class="remove-btn" aria-label="Remove player ${i + 1}" onclick="removePlayer(${i})">✕</button>` : ''}
+    </div>
+  `).join('');
+}
+
+function goToLobby() {
+  if (players.filter(p => p.name.trim()).length === 0 && players.length < 2) return;
+  showScreen('screen-lobby');
+  document.getElementById('playersStrip').innerHTML =
+    players.map((p, i) => `<div class="player-chip">${EMOJIS[i]} ${esc(pname(i))}</div>`).join('');
+}
+
+// ─────────────────────────────────────────────
+//  ELIMINATION + RESULT
+// ─────────────────────────────────────────────
+function showElim(name, emoji, gameTitle, msg) {
+  loserName = name;
+  document.getElementById('elimEmoji').textContent  = emoji;
+  document.getElementById('elimTitle').textContent  = gameTitle + ': Game Over!';
+  document.getElementById('elimName').textContent   = name;
+  document.getElementById('elimMsg').textContent    = msg;
+  showScreen('screen-elim');
+  snd.lose();
+}
+
+function showFinalResult() {
+  document.getElementById('finalName').textContent = loserName;
+  document.getElementById('finalMsg').textContent  = rnd(FUN_MSGS)(loserName);
+  showScreen('screen-result');
+  snd.win();
+}
+
+function restartApp() {
+  loserName = '';
+  showScreen('screen-setup');
+}
+
+// ─────────────────────────────────────────────
+//  FLASH UTIL
+// ─────────────────────────────────────────────
+function flash(color = '#ff4444') {
+  const el = document.getElementById('flashOverlay');
+  el.style.background = color;
+  el.style.opacity = '0.55';
+  later(() => { el.style.opacity = '0'; }, 180);
+}
+
+// ════════════════════════════════════════════════════════
+//  GAME 1 · CROC ROULETTE
+// ════════════════════════════════════════════════════════
+let croc = {};
+
+function startCroc() {
+  backTarget = 'screen-lobby';
+  showScreen('screen-croc');
+  resetCroc();
+}
+
+function resetCroc() {
+  cancelPending();
+  const n = parseInt(document.getElementById('teethSlider').value);
+  croc = { n, badIdx: -1, pulled: new Set(), currentPlayer: Math.floor(Math.random() * players.length), started: false, over: false, locked: false };
+  document.getElementById('teethConfig').style.display = 'flex';
+  document.getElementById('crocUpper').classList.remove('snapping');
+  renderTeeth();
+  document.getElementById('crocTurnName').textContent = pname(croc.currentPlayer);
+  document.getElementById('crocStatus').textContent   = `${n} teeth remaining`;
+}
+
+function onTeethSlider(val) {
+  document.getElementById('teethCountDisplay').textContent = val;
+  if (!croc.started) {
+    croc.n = parseInt(val);
+    croc.pulled.clear();
+    renderTeeth();
+    document.getElementById('crocStatus').textContent = `${val} teeth remaining`;
+  }
+}
+
+function renderTeeth() {
+  const upper = document.getElementById('upperTeeth');
+  const lower = document.getElementById('lowerTeeth');
+  const n = croc.n;
+
+  upper.innerHTML = Array.from({ length: n }, (_, i) => {
+    const pulled  = croc.pulled.has(i);
+    const isBad   = croc.over && i === croc.badIdx;
+    return `
+      <button
+        class="tooth-btn${pulled ? ' pulled' : ''}${isBad ? ' bad-reveal' : ''}"
+        id="t${i}"
+        onclick="clickTooth(${i})"
+        ${(pulled || croc.over) ? 'disabled' : ''}
+        aria-label="Tooth ${i + 1}"
+      ><div class="tooth-shape"></div></button>
+    `;
+  }).join('');
+
+  const lowerN = Math.round(n * 0.65);
+  lower.innerHTML = Array.from({ length: lowerN }, () => '<div class="lower-tooth"></div>').join('');
+}
+
+function clickTooth(i) {
+  if (croc.over || croc.locked || croc.pulled.has(i)) return;
+  croc.locked = true;
+  snd.click();
+
+  if (!croc.started) {
+    croc.started  = true;
+    croc.badIdx   = Math.floor(Math.random() * croc.n);
+    document.getElementById('teethConfig').style.display = 'none';
+  }
+
+  if (i === croc.badIdx) {
+    // 💥 Bad tooth!
+    croc.over = true;
+    croc.pulled.add(i);
+    renderTeeth();
+
+    const upper = document.getElementById('crocUpper');
+    upper.classList.add('snapping');
+    snd.snap();
+    flash('#ff4444');
+
+    document.getElementById('crocStatus').textContent = '😱 SNAP!';
+
+    later(() => {
+      upper.classList.remove('snapping');
+      showElim(
+        pname(croc.currentPlayer),
+        '😬',
+        'Croc Roulette',
+        `${pname(croc.currentPlayer)} picked the cursed tooth! The croc snapped! 🐊`
+      );
+    }, 700);
+  } else {
+    // ✅ Safe
+    croc.pulled.add(i);
+    snd.safe();
+
+    const btn = document.getElementById(`t${i}`);
+    if (btn) {
+      btn.querySelector('.tooth-shape').style.background = '#4ecdc4';
+      later(() => { btn.classList.add('pulled'); croc.locked = false; renderTeeth(); }, 220);
+    }
+
+    const remaining = croc.n - croc.pulled.size;
+    document.getElementById('crocStatus').textContent = `${remaining} teeth remaining… 😰`;
+
+    croc.currentPlayer = (croc.currentPlayer + 1) % players.length;
+    document.getElementById('crocTurnName').textContent = pname(croc.currentPlayer);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  GAME 2 · REACTION DUEL
+// ════════════════════════════════════════════════════════
+let rxn = {};
+
+function startReaction() {
+  backTarget = 'screen-lobby';
+  showScreen('screen-reaction');
+  initReaction();
+}
+
+function initReaction(contestants = players.map((_, i) => i)) {
+  cancelPending();
+  rxn = { contestants, playerIdx: 0, scores: [], phase: 'idle', goTime: 0, timer: null };
+  document.getElementById('reactionScoreboard').style.display = 'none';
+  document.getElementById('reactionTurnBar').style.display = '';
+  document.getElementById('reactionZone').style.display = '';
+  document.getElementById('reactionTurnName').textContent = pname(contestants[0]);
+  setRxnZone('idle', 'Tap to Start', contestants.length < players.length ? 'Tiebreak: slowest pays' : 'Wait for green. Early taps lose to valid times.', '👆');
+}
+
+function setRxnZone(phase, bigText, hint, emoji) {
+  const zone = document.getElementById('reactionZone');
+  zone.className = 'reaction-zone state-' + phase;
+  if (emoji    !== undefined) document.getElementById('reactionEmoji').textContent = emoji;
+  if (bigText  !== undefined) document.getElementById('reactionBig').textContent   = bigText;
+  if (hint     !== undefined) document.getElementById('reactionHint').textContent  = hint;
+}
+
+function onReactionTap() {
+  const phase = rxn.phase;
+  if (phase === 'done-all') return;
+
+  if (phase === 'idle') {
+    rxn.phase = 'waiting';
+    setRxnZone('waiting', 'Get Ready…', 'Watch for green!', '👀');
+
+    later(() => {
+      if (rxn.phase !== 'waiting') return;
+      rxn.phase = 'red';
+      setRxnZone('red', 'NOT YET!', 'Wait for it…', '🔴');
+
+      const delay = 1200 + Math.random() * 2800;
+      rxn.timer = later(() => {
+        rxn.phase   = 'green';
+        rxn.goTime  = performance.now();
+        setRxnZone('green', 'TAP NOW!', '', '🟢');
+        snd.go();
+      }, delay);
+    }, 600);
+
+  } else if (phase === 'red' || phase === 'waiting') {
+    cancelPending();
+    rxn.phase = 'false';
+    setRxnZone('done', 'Too early! ⚠️', 'False start: worse than any valid time', '😬');
+    snd.lose();
+    rxn.scores.push({ player: rxn.contestants[rxn.playerIdx], name: pname(rxn.contestants[rxn.playerIdx]), ms: Infinity, label: 'TOO EARLY 😬' });
+    later(nextReactionPlayer, 1800);
+
+  } else if (phase === 'green') {
+    const ms = Math.round(performance.now() - rxn.goTime);
+    rxn.phase = 'result';
+    setRxnZone('done', `${ms}ms ⚡`, 'Nice!', '✅');
+    snd.flip();
+    rxn.scores.push({ player: rxn.contestants[rxn.playerIdx], name: pname(rxn.contestants[rxn.playerIdx]), ms, label: `${ms}ms` });
+    later(nextReactionPlayer, 1400);
+  }
+}
+
+function nextReactionPlayer() {
+  rxn.playerIdx++;
+  if (rxn.playerIdx >= rxn.contestants.length) {
+    endReaction();
+    return;
+  }
+  rxn.phase = 'idle';
+  document.getElementById('reactionTurnName').textContent = pname(rxn.contestants[rxn.playerIdx]);
+  setRxnZone('idle', 'Tap to Start', `${pname(rxn.contestants[rxn.playerIdx])}'s turn`, '👆');
+}
+
+function endReaction() {
+  const sorted   = [...rxn.scores].sort((a, b) => b.ms - a.ms);
+  const worst    = sorted[0];
+  const tied = sorted.filter(r => r.ms === worst.ms);
+  if (tied.length > 1) {
+    rxn.phase = 'done-all';
+    setRxnZone('done', 'Tiebreak!', 'Tied slowest players will play again. Pass the phone when prompted.', '🤝');
+    later(() => initReaction(tied.map(r => r.player)), 2200);
+    return;
+  }
+  const board    = document.getElementById('reactionScoreboard');
+
+  board.style.display = 'flex';
+  board.innerHTML     = `
+    <h3 class="fredoka" style="text-align:center;font-size:1.5rem;margin-bottom:6px">Results 📊</h3>
+    ${sorted.map((r, i) => `
+      <div class="score-row ${i === 0 ? 'loser-row' : ''}">
+        <span class="score-name">${i === 0 ? '💀 ' : i === sorted.length - 1 ? '⚡ ' : ''}${esc(r.name)}</span>
+        <span class="score-time ${i === 0 ? 'bad' : ''}">${r.label}</span>
+      </div>
+    `).join('')}
+  `;
+
+  document.getElementById('reactionTurnBar').style.display = 'none';
+  document.getElementById('reactionZone').style.display    = 'none';
+  rxn.phase = 'done-all';
+
+  later(() => {
+    showElim(
+      worst.name,
+      '🐢',
+      'Reaction Duel',
+      worst.ms === Infinity ? `${worst.name} tapped before green! Dinner's on the early bird. 😬` : `${worst.name} had the slowest reaction time (${worst.label}). Dinner's on the tortoise! 🐌`
+    );
+  }, 2600);
+}
+
+// ════════════════════════════════════════════════════════
+//  GAME 3 · CARD DRAW
+// ════════════════════════════════════════════════════════
+const RANKS  = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const SUITS  = ['♣','♦','♥','♠'];
+const R_VAL  = {'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13,'A':14};
+const S_VAL  = {'♣':1,'♦':2,'♥':3,'♠':4};
+const RED_S  = new Set(['♥','♦']);
+
+let cards = {};
+
+function startCards() {
+  backTarget = 'screen-lobby';
+  showScreen('screen-cards');
+  initCards();
+}
+
+function initCards() {
+  // Build and shuffle
+  const deck = [];
+  for (const s of SUITS) for (const r of RANKS) deck.push({ r, s });
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+
+  cards = {
+    hands:  players.map((_, i) => ({ card: deck[i], flipped: false })),
+    flippedCount: 0,
+    done: false,
+  };
+
+  document.getElementById('cardsHint').textContent = 'Lowest rank pays. Aces high. Ties: ♣ < ♦ < ♥ < ♠.';
+  renderCards();
+}
+
+function renderCards(highlightLoser = false) {
+  const area = document.getElementById('cardsArea');
+  let loserIdx = -1;
+
+  if (highlightLoser) {
+    let minScore = Infinity;
+    cards.hands.forEach((h, i) => {
+      const score = R_VAL[h.card.r] * 10 + S_VAL[h.card.s];
+      if (score < minScore) { minScore = score; loserIdx = i; }
+    });
+  }
+
+  area.innerHTML = cards.hands.map((h, i) => {
+    const isRed = RED_S.has(h.card.s);
+    const isLoser  = i === loserIdx;
+    const isWinner = highlightLoser && !isLoser && cards.hands.length > 1;
+    return `
+      <div
+        role="button" tabindex="0" aria-disabled="${h.flipped}" class="card-row ${h.flipped ? 'drawn' : ''} ${isLoser ? 'loser-card' : ''} ${isWinner && h.flipped ? 'winner-card' : ''}"
+        onclick="flipCard(${i})"
+      >
+        <span class="card-player-name">${EMOJIS[i]} ${esc(pname(i))}</span>
+        ${h.flipped
+          ? `<div class="card-face ${isRed ? 'red-card' : 'black-card'}">
+               <div class="card-rank">${h.card.r}</div>
+               <div class="card-suit">${h.card.s}</div>
+             </div>`
+          : `<div class="card-back">🂠</div>`}
+      </div>
+    `;
+  }).join('');
+}
+
+function flipCard(i) {
+  if (cards.done || cards.hands[i].flipped) return;
+  cards.hands[i].flipped = true;
+  cards.flippedCount++;
+  snd.flip();
+  renderCards();
+
+  if (cards.flippedCount === players.length) {
+    cards.done = true;
+    document.getElementById('cardsHint').textContent = 'All cards drawn! 👀';
+    later(resolveCards, 900);
+  }
+}
+
+function resolveCards() {
+  let minScore = Infinity, loserIdx = -1;
+  cards.hands.forEach((h, i) => {
+    const score = R_VAL[h.card.r] * 10 + S_VAL[h.card.s];
+    if (score < minScore) { minScore = score; loserIdx = i; }
+  });
+
+  renderCards(true);
+  const { r, s } = cards.hands[loserIdx].card;
+  flash('#ff4444');
+
+  later(() => {
+    showElim(
+      pname(loserIdx),
+      '🃏',
+      'Card Draw',
+      `${pname(loserIdx)} drew ${r}${s} — the lowest card. Dinner's on you! 🍽️`
+    );
+  }, 1200);
+}
+
+// ─────────────────────────────────────────────
+//  BOOT
+// ─────────────────────────────────────────────
+let savedPlayers;
+try { savedPlayers = JSON.parse(readSetting('whopays-players')); } catch {}
+if (Array.isArray(savedPlayers) && savedPlayers.length >= 2 && savedPlayers.length <= 8 && savedPlayers.every(n => typeof n === 'string')) {
+ players = savedPlayers.map(name => ({ name: name.slice(0,40) })); renderSetup();
+} else { addPlayer(''); addPlayer(''); addPlayer(''); }
+updateMute();
+</script>
+</body>
+</html>
