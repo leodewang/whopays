@@ -301,6 +301,41 @@ body{
 .game-card:focus-visible,.card-row:focus-visible,.reaction-zone:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 #muteBtn{position:fixed;right:14px;top:14px;z-index:200;min-height:44px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+[hidden]{display:none!important}
+/* Original table-style dealing, flip reveals, and touch-ring choreography. */
+.finger-marker{animation:fingerPulse 1.4s ease-in-out infinite;will-change:transform}
+.finger-marker.countdown{animation-duration:.55s}
+.finger-marker.dim{animation:none}
+.finger-marker.chosen{animation:fingerChosen .65s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fingerPulse{50%{transform:translate(-50%,-50%) scale(1.13);box-shadow:0 0 32px var(--ring)}}
+@keyframes fingerChosen{0%{transform:translate(-50%,-50%) scale(.8)}60%{transform:translate(-50%,-50%) scale(1.25)}100%{transform:translate(-50%,-50%) scale(1)}}
+.plo-wrap{width:100%;max-width:440px}
+.plo-controls{display:flex;align-items:center;justify-content:center;gap:14px;margin:14px 0}
+.plo-controls select{font:inherit;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:10px}
+.plo-note{font-size:.83rem;color:var(--muted);text-align:center;line-height:1.5;margin:10px 0}
+.plo-board{background:var(--surface);border:2px solid var(--border);border-radius:22px;padding:18px 8px;margin:14px 0}
+.plo-row{display:flex;gap:7px;justify-content:center}
+.plo-card{position:relative;width:52px;height:74px;flex:0 1 52px;padding:0;border:0;border-radius:9px;background:transparent;perspective:600px;touch-action:manipulation}
+.plo-card:disabled{opacity:1;cursor:default}
+.plo-card:not(:disabled){cursor:pointer}
+.plo-card:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.plo-inner{display:block;width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .38s ease}
+.plo-card.revealed .plo-inner{transform:rotateY(180deg)}
+.plo-face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:9px;border:2px solid var(--border);font-size:1.2rem;font-weight:900}
+.plo-back{background:repeating-linear-gradient(45deg,#34344c,#34344c 5px,#40405b 5px,#40405b 10px);color:#e5ce7d;font-size:1.5rem}
+.plo-front{transform:rotateY(180deg);background:#fff9ec;color:#242434;border-color:#e4d9c6}
+.plo-front.red{color:#c92b4d}
+.plo-card.undealt{visibility:hidden}
+.plo-card.dealt{animation:ploDeal .32s ease-out both}
+@keyframes ploDeal{from{opacity:0;transform:translate(25px,-55px) rotate(-15deg) scale(.75)}to{opacity:1;transform:translate(0,0) rotate(0) scale(1)}}
+.plo-seat{background:var(--surface);border:1px solid var(--border);border-radius:17px;padding:12px;margin:10px 0}
+.plo-seat.winner{border:2px solid var(--accent)}
+.plo-name{font-weight:900;margin-bottom:9px;overflow-wrap:anywhere}
+.plo-strength{font-size:.8rem;color:var(--muted);line-height:1.45;margin-top:8px;text-align:center}
+#ploStatus{text-align:center;font-weight:800;min-height:42px;color:var(--accent);overflow-wrap:anywhere}
+@media(prefers-reduced-motion:reduce){.finger-marker,.finger-marker.chosen,.plo-card.dealt{animation:none!important}.plo-inner{transition:none!important}}
+
 </style>
 </head>
 <body>
@@ -362,6 +397,10 @@ body{
       </div>
     </div>
 
+    <div class="game-card" role="button" tabindex="0" onclick="startPlo()">
+      <div class="game-icon">♠️</div><div class="game-info"><div class="game-title">PLO Showdown</div>
+      <div class="game-desc">Four hidden cards. Five on the board. Reveal the winning hand.</div><span class="game-tag tag-luck">🎰 Luck · Omaha</span></div>
+    </div>
     <div class="game-card" role="button" tabindex="0" onclick="startCards()">
       <div class="game-icon">🃏</div>
       <div class="game-info">
@@ -429,6 +468,19 @@ body{
 <!-- ═══════════════════════════════════════════ -->
 <!-- SCREEN 5 · CARDS GAME                      -->
 <!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="screen-plo">
+  <h2 class="fredoka" style="font-size:1.9rem">♠️ PLO Showdown</h2>
+  <div class="plo-wrap">
+    <p class="plo-note">No betting. Omaha high: use exactly 2 of your 4 cards and exactly 3 board cards. This mode announces the winner; it does not assign the bill.</p>
+    <div id="ploSetup"><div class="plo-controls"><label for="ploCount">Players</label><select id="ploCount" onchange="previewPloNames()"><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select></div>
+    <p class="plo-note" id="ploRoster"></p><button class="btn btn-primary btn-full" onclick="dealPlo()">Deal a hand</button></div>
+    <div id="ploStatus" role="status" aria-live="polite"></div>
+    <div id="ploTable" hidden><div class="plo-board"><div class="plo-row" id="ploBoard"></div></div><div id="ploSeats"></div></div>
+    <button id="ploNew" hidden class="btn btn-primary btn-full" onclick="dealPlo()">New hand</button>
+    <button class="btn btn-ghost btn-full" style="margin-top:12px" onclick="startPlo()">Change player count</button>
+    <button class="btn btn-ghost btn-full" style="margin-top:10px" onclick="showScreen('screen-lobby')">Back to games</button>
+  </div>
+</div>
 <div class="screen" id="screen-finger">
   <h2 class="fredoka" style="font-size:1.9rem">👆 Finger Pick</h2>
   <p class="finger-note">Put the phone flat. One finger per person in the play area. Keep holding until one ring is chosen!</p>
@@ -1003,6 +1055,65 @@ function resolveCards() {
 //  GAME 4 · FINGER PICK
 // ════════════════════════════════════════════════════════
 const FINGER_COLORS = ['#ff6b35','#4ecdc4','#ffe66d','#b69cff','#ff83b5','#51cf66','#70baff','#ffffff'];
+
+// PLO evaluator: enumerate all 6 hole pairs and 10 board triples.
+const PLO_SUITS = ['♠','♥','♦','♣'];
+const PLO_CATEGORIES = ['High card','One pair','Two pair','Three of a kind','Straight','Flush','Full house','Four of a kind','Straight flush'];
+let plo = {phase:'idle'};
+function ploCompare(a,b) { for(let i=0;i<Math.max(a.length,b.length);i++){const d=(a[i]||0)-(b[i]||0);if(d)return d;}return 0; }
+function ploFive(cards){
+ const ranks=cards.map(c=>c.rank).sort((a,b)=>b-a), unique=[...new Set(ranks)];
+ const flush=cards.every(c=>c.suit===cards[0].suit);
+ const straight=unique.length===5 && (unique[0]-unique[4]===4 ? unique[0] : unique.join(',')==='14,5,4,3,2' ? 5 : 0);
+ const groups=[...new Set(ranks)].map(r=>[ranks.filter(x=>x===r).length,r]).sort((a,b)=>b[0]-a[0]||b[1]-a[1]);
+ if(flush&&straight)return [8,straight];
+ if(groups[0][0]===4)return [7,groups[0][1],groups[1][1]];
+ if(groups[0][0]===3&&groups[1][0]===2)return [6,groups[0][1],groups[1][1]];
+ if(flush)return [5,...ranks];if(straight)return [4,straight];
+ if(groups[0][0]===3)return [3,groups[0][1],...groups.slice(1).map(g=>g[1])];
+ if(groups[0][0]===2&&groups[1][0]===2)return [2,...groups.map(g=>g[1])];
+ if(groups[0][0]===2)return [1,...groups.map(g=>g[1])];return [0,...ranks];
+}
+function ploEvaluate(hole,board){
+ let best=null;
+ for(let a=0;a<3;a++)for(let b=a+1;b<4;b++)for(let c=0;c<3;c++)for(let d=c+1;d<4;d++)for(let e=d+1;e<5;e++){
+  const cards=[hole[a],hole[b],board[c],board[d],board[e]],score=ploFive(cards);
+  if(!best||ploCompare(score,best.score)>0)best={score,cards,category:PLO_CATEGORIES[score[0]]};
+ }return best;
+}
+function ploShuffle(){const deck=[];for(let suit=0;suit<4;suit++)for(let rank=2;rank<=14;rank++)deck.push({rank,suit});for(let i=51;i>0;i--){const j=randomFingerIndex(i+1);[deck[i],deck[j]]=[deck[j],deck[i]];}return deck;}
+function ploNames(n){return Array.from({length:n},(_,i)=>i<players.length?pname(i):`Player ${i+1}`);}
+function previewPloNames(){document.getElementById('ploRoster').textContent=ploNames(Number(document.getElementById('ploCount').value)).join(' · ');}
+function startPlo(){backTarget='screen-lobby';showScreen('screen-plo');plo={phase:'setup'};document.getElementById('ploCount').value=String(Math.max(2,Math.min(8,players.length)));document.getElementById('ploSetup').hidden=false;document.getElementById('ploTable').hidden=true;document.getElementById('ploNew').hidden=true;document.getElementById('ploStatus').textContent='Choose your seats, then deal.';previewPloNames();}
+function ploCardHTML(id){return `<button id="${id}" class="plo-card undealt" disabled aria-label="Hidden card"><span class="plo-inner"><span class="plo-face plo-back">♠</span><span class="plo-face plo-front"></span></span></button>`;}
+function ploFace(id,card){const node=document.getElementById(id),face=node.querySelector('.plo-front');const rank=({11:'J',12:'Q',13:'K',14:'A'})[card.rank]||String(card.rank);face.textContent=rank+' '+PLO_SUITS[card.suit];face.classList.toggle('red',card.suit===1||card.suit===2);node.classList.add('revealed');node.setAttribute('aria-label',rank+' of '+['spades','hearts','diamonds','clubs'][card.suit]);}
+function dealPlo(){
+ if(!document.getElementById('screen-plo').classList.contains('active')||!['setup','showdown'].includes(plo.phase))return;
+ cancelPending();const n=Number(document.getElementById('ploCount').value);if(!Number.isInteger(n)||n<2||n>8)return;
+ const deck=ploShuffle();plo={phase:'dealing',names:ploNames(n),hands:Array.from({length:n},()=>[]),board:[],revealed:Array.from({length:n},()=>Array(4).fill(false)),count:0};
+ for(let c=0;c<4;c++)for(let i=0;i<n;i++)plo.hands[i].push(deck.pop());
+ deck.pop();plo.board.push(deck.pop(),deck.pop(),deck.pop());deck.pop();plo.board.push(deck.pop());deck.pop();plo.board.push(deck.pop());
+ document.getElementById('ploSetup').hidden=true;document.getElementById('ploTable').hidden=false;document.getElementById('ploNew').hidden=true;document.getElementById('ploStatus').textContent='Dealing four cards to every player…';
+ document.getElementById('ploBoard').innerHTML=Array.from({length:5},(_,i)=>ploCardHTML('plo-b-'+i)).join('');
+ document.getElementById('ploSeats').innerHTML=plo.names.map((name,i)=>`<div class="plo-seat" id="plo-seat-${i}"><div class="plo-name">${esc(name)}</div><div class="plo-row">${Array.from({length:4},(_,c)=>ploCardHTML(`plo-h-${i}-${c}`)).join('')}</div><div class="plo-strength" id="plo-strength-${i}"></div></div>`).join('');
+ for(let i=0;i<n;i++)for(let c=0;c<4;c++)document.getElementById(`plo-h-${i}-${c}`).addEventListener('click',()=>revealPlo(i,c));
+ let t=0;for(let c=0;c<4;c++)for(let i=0;i<n;i++){later(()=>{document.getElementById(`plo-h-${i}-${c}`).classList.replace('undealt','dealt');tone(300+c*40,'sine',.035,.04);},t);t+=95;}
+ const boardStart=t+450;
+ [0,0,0,850,1700].forEach((delay,i)=>later(()=>{plo.phase='runout';document.getElementById('ploStatus').textContent=i<3?'The flop…':i===3?'The turn…':'The river…';document.getElementById('plo-b-'+i).classList.replace('undealt','dealt');ploFace('plo-b-'+i,plo.board[i]);tone(500,'sine',.06,.08);},boardStart+delay+i*65));
+ later(()=>{plo.phase='reveal';document.getElementById('ploStatus').textContent=`Tap each hidden card · 0 / ${4*n} revealed`;document.querySelectorAll('#ploSeats .plo-card').forEach(b=>{b.disabled=false;b.setAttribute('aria-label','Reveal hidden card');});},boardStart+2400);
+}
+function revealPlo(i,c){
+ if(!document.getElementById('screen-plo').classList.contains('active')||plo.phase!=='reveal'||!Number.isInteger(i)||!Number.isInteger(c)||!plo.revealed[i]||c<0||c>3||plo.revealed[i][c])return;
+ plo.revealed[i][c]=true;plo.count++;const node=document.getElementById(`plo-h-${i}-${c}`);node.disabled=true;ploFace(node.id,plo.hands[i][c]);tone(620,'sine',.065,.08);
+ document.getElementById('ploStatus').textContent=`Tap each hidden card · ${plo.count} / ${plo.names.length*4} revealed`;
+ if(plo.count===plo.names.length*4){plo.phase='settling';document.getElementById('ploStatus').textContent='All cards revealed. Comparing hands…';later(finishPlo,450);}
+}
+function finishPlo(){
+ if(!document.getElementById('screen-plo').classList.contains('active')||plo.phase!=='settling')return;plo.phase='showdown';const results=plo.hands.map(h=>ploEvaluate(h,plo.board));let best=results[0].score;for(const r of results)if(ploCompare(r.score,best)>0)best=r.score;
+ const winners=[];results.forEach((r,i)=>{const wins=ploCompare(r.score,best)===0;if(wins)winners.push(plo.names[i]);document.getElementById('plo-seat-'+i).classList.toggle('winner',wins);document.getElementById('plo-strength-'+i).textContent=(wins?'🏆 ':'')+r.category+' · '+r.cards.map(c=>(( {11:'J',12:'Q',13:'K',14:'A'} )[c.rank]||c.rank)+PLO_SUITS[c.suit]).join(' ');});
+ document.getElementById('ploStatus').textContent=winners.length===1?`🏆 ${winners[0]} wins!`:`🤝 Shared win: ${winners.join(' & ')}`;document.getElementById('ploNew').hidden=false;window.scrollTo(0,0);tone(784,'sine',.25,.12);
+}
+
 let finger = { active: false, points: new Map(), timer: null, phase: 'idle' };
 const fingerPad = document.getElementById('fingerPad');
 
@@ -1043,14 +1154,14 @@ function resetFinger() {
 }
 function renderFingers() {
   const markers = document.getElementById('fingerMarkers');
-  markers.innerHTML = '';
+  for (const node of [...markers.children]) { if (!finger.points.has(Number(node.dataset.pointer))) node.remove(); }
   for (const [id, point] of finger.points) {
-    const node = document.createElement('div');
-    node.className = 'finger-marker' + (finger.phase === 'chosen' ? (id === finger.chosen ? ' chosen' : ' dim') : '');
+    let node = [...markers.children].find(n => n.dataset.pointer === String(id));
+    if (!node) { node = document.createElement('div'); node.dataset.pointer = String(id); markers.appendChild(node); }
+    node.className = 'finger-marker' + (finger.phase === 'chosen' ? (id === finger.chosen ? ' chosen' : ' dim') : (finger.phase === 'countdown' ? ' countdown' : ''));
     node.style.setProperty('--ring', FINGER_COLORS[point.slot % FINGER_COLORS.length]);
     node.style.left = point.x + 'px'; node.style.top = point.y + 'px';
     node.textContent = String(point.slot + 1);
-    markers.appendChild(node);
   }
 }
 function updateFingerCount() {
@@ -1059,11 +1170,13 @@ function updateFingerCount() {
   const count = finger.points.size;
   document.getElementById('fingerCenter').textContent = count ? '' : 'Place your fingers here';
   finger.phase = 'waiting';
+  renderFingers();
   if (count !== finger.expected) {
     document.getElementById('fingerStatus').textContent = `${count} / ${finger.expected} fingers · ` + (count > finger.expected ? 'One finger each! Lift extra fingers.' : 'Keep holding. Waiting for everyone…');
     return;
   }
   finger.phase = 'countdown';
+  renderFingers();
   document.getElementById('fingerStatus').textContent = 'Everyone is in! Hold still… 2';
   tone(520,'sine',.08,.15);
   finger.timer = later(() => {

@@ -7,15 +7,15 @@ const path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
 function app(saved={},options={}) {
  let now=0, sequence=0; const timers=new Map(), nodes=new Map(), listeners=new Map();
- function node(id) { if(!nodes.has(id)) { const classes=new Set(), attributes=new Map(); const element={style:{setProperty(k,v){this[k]=v;}},dataset:{},children:[],value:id==='teethSlider'?'15':'',textContent:'',innerHTML:'',disabled:false,
- classList:{add:(...cs)=>cs.forEach(c=>classes.add(c)),remove:(...cs)=>cs.forEach(c=>classes.delete(c)),contains:c=>classes.has(c),toggle(c,force){if(force??!classes.has(c)){classes.add(c);return true;}classes.delete(c);return false;}},
+ function node(id) { if(!nodes.has(id)) { const classes=new Set(), attributes=new Map(); const element={id,style:{setProperty(k,v){this[k]=v;}},dataset:{},children:[],value:id==='teethSlider'?'15':'',textContent:'',innerHTML:'',disabled:false,
+ classList:{replace(a,b){const had=classes.delete(a);if(had)classes.add(b);return had;},add:(...cs)=>cs.forEach(c=>classes.add(c)),remove:(...cs)=>cs.forEach(c=>classes.delete(c)),contains:c=>classes.has(c),toggle(c,force){if(force??!classes.has(c)){classes.add(c);return true;}classes.delete(c);return false;}},
  setAttribute:(k,v)=>attributes.set(k,String(v)),getAttribute:k=>attributes.get(k),removeAttribute:k=>attributes.delete(k),
  querySelector:()=>node(id+'-child'),querySelectorAll:()=>[],appendChild(child){this.children.push(child);child.parentNode=this;return child;},append(child){this.appendChild(child);},replaceChildren(...children){this.children=children;},remove(){this.removed=true;},
  addEventListener(type,fn){listeners.set(id+':'+type,fn);},setPointerCapture(){},releasePointerCapture(){},hasPointerCapture(){return true;},getBoundingClientRect:()=>({left:0,top:0,width:360,height:480,right:360,bottom:480}),focus(){}};nodes.set(id,element); } return nodes.get(id); }
- const screens=['setup','lobby','croc','reaction','cards','finger','elim','result'].map(x=>node('screen-'+x));
+ const screens=['setup','lobby','croc','reaction','cards','finger','plo','elim','result'].map(x=>node('screen-'+x));
  const localStorage={getItem:k=>saved[k]??null,setItem:(k,v)=>saved[k]=v};
  const window={scrollTo(){},addEventListener:(type,fn)=>listeners.set('window:'+type,fn),setTimeout(fn,delay){let id=++sequence;timers.set(id,{fn,time:now+delay});return id;},clearTimeout:id=>timers.delete(id),PointerEvent:function(){}};
- const document={hidden:false,visibilityState:'visible',getElementById:node,querySelectorAll:()=>screens,createElement:tag=>node('created-'+(++sequence)),addEventListener:(type,fn)=>listeners.set('document:'+type,fn)};
+ const document={hidden:false,visibilityState:'visible',getElementById:node,querySelectorAll:selector=>selector==='#ploSeats .plo-card'?[...nodes.values()].filter(n=>/^plo-h-\d-\d$/.test(n.id)):screens,createElement:tag=>node('created-'+(++sequence)),addEventListener:(type,fn)=>listeners.set('document:'+type,fn)};
  const context=vm.createContext({crypto:{getRandomValues(values){values[0]=options.randomValue??0;return values;}},clearTimeout:window.clearTimeout,window,document,navigator:{maxTouchPoints:options.maxTouchPoints??5},localStorage,performance:{now:()=>now},console});
  vm.runInContext(source,context);
  const run=s=>vm.runInContext(s,context);
@@ -45,3 +45,40 @@ test('finger ignores mouse, duplicate contacts and devices below roster capacity
 test('finger supports eight participants when device supports eight touches',()=>{const a=app({}, {maxTouchPoints:8,randomValue:7});a.run('while(players.length<8)addPlayer();startFinger()');fingers(a,8);a.advance(2000);assert.equal(a.run('finger.chosen'),8);assert.equal(a.run('finger.phase'),'chosen');});
 test('finger moving outside pad or losing capture removes contact and cancels pick',()=>{for(const [type,values] of [['pointermove',{clientX:400}],['lostpointercapture',{}]]){const a=app();a.run('startFinger()');fingers(a,3);a.advance(1500);a.event('fingerPad',type,{pointerId:2,...values});a.advance(1000);assert.equal(a.run('finger.phase'),'waiting');assert.equal(a.run('finger.points.size'),2);}});
 test('finger resize cancels a held countdown; stale reset cannot reactivate outside mode',()=>{const a=app();a.run('startFinger()');fingers(a,3);a.advance(1500);a.event('window','resize');a.advance(3000);assert.equal(a.run('finger.phase'),'waiting');assert.equal(a.run('finger.points.size'),0);a.run('goBack();resetFinger()');fingers(a,3);a.advance(3000);assert.equal(a.run('finger.active'),false);assert.ok(a.active('lobby'));});
+
+// PLO fixtures use distinct physical cards; exactly two hole and three board cards.
+function pokerCards(text) {const ranks='23456789TJQKA',suits='cdhs';return text.split(' ').map(c=>({rank:ranks.indexOf(c[0])+2,suit:suits.indexOf(c[1])}));}
+function evaluate(a,hole,board){return JSON.parse(a.run('JSON.stringify(ploEvaluate('+JSON.stringify(pokerCards(hole))+','+JSON.stringify(pokerCards(board))+'))'));}
+test('PLO recognizes all nine hand categories with exactly two plus three',()=>{const a=app();const cases=[
+ ['Ac Qd 3h 2s','Kh Jc 9d 7s 4h',0],
+ ['Ac Ad 3h 2s','Kh Jc 9d 7s 4h',1],
+ ['Ac Kd 3h 2s','Ah Kc 9d 7s 4h',2],
+ ['Ac Ad 3h 2s','Ah Kc 9d 7s 4h',3],
+ ['Ac Kd 3h 2s','Qh Jc Td 7s 4h',4],
+ ['Ac Qc 3h 2s','Kc Jc 9c 7s 4h',5],
+ ['Ac Ad 3h 2s','Ah Kc Kd 7s 4h',6],
+ ['Ac Ad 3h 2s','Ah As Kd 7s 4h',7],
+ ['Ac Kc 3h 2s','Qc Jc Tc 7s 4h',8]];
+ for(const [hole,board,category] of cases){const result=evaluate(a,hole,board);assert.equal(result.score[0],category,hole+' / '+board);assert.equal(result.cards.length,5);}
+});
+test('PLO cannot play a board royal flush or use only one suited hole card',()=>{const a=app();assert.equal(evaluate(a,'2d 3h 4s 5d','Ac Kc Qc Jc Tc').score[0],0);assert.notEqual(evaluate(a,'Ac Kd 3h 2s','Qc Jc 9c 7c 4h').score[0],5);});
+test('PLO wheel ranks five high and loses to six-high straight',()=>{const a=app();const wheel=evaluate(a,'Ac 2d Kh Qh','3s 4c 5d 9h Ts');const six=evaluate(a,'2c 6d Kh Qh','3s 4c 5d 9h Ts');assert.deepEqual(wheel.score,[4,5]);assert.deepEqual(six.score,[4,6]);assert.ok(a.run('ploCompare('+JSON.stringify(six.score)+','+JSON.stringify(wheel.score)+')')>0);});
+test('PLO full house prioritizes trips; quads prioritize kicker; suits do not break ties',()=>{const a=app();const compare=(x,y)=>a.run('ploCompare('+JSON.stringify(x.score)+','+JSON.stringify(y.score)+')');
+ assert.ok(compare(evaluate(a,'Ac Ad 3h 2s','Ah Kc Kd 7s 4h'),evaluate(a,'Kc Kd 3h 2s','Kh Ac Ad 7s 4h'))>0);
+ assert.ok(compare(evaluate(a,'Ac Kd 3h 2s','Ah As Ad 7s 4h'),evaluate(a,'Ac Qd 3h 2s','Ah As Ad 7s 4h'))>0);
+ assert.equal(compare(evaluate(a,'Ac Kd 3h 2s','Qh Jc Td 7s 4h'),evaluate(a,'Ad Ks 3c 2h','Qh Jc Td 7s 4h')),0);
+});
+test('PLO shuffled deck contains all 52 physical cards exactly once',()=>{const a=app();const deck=JSON.parse(a.run('JSON.stringify(ploShuffle())'));assert.equal(deck.length,52);assert.equal(new Set(deck.map(c=>c.rank+':'+c.suit)).size,52);assert.ok(deck.every(c=>c.rank>=2&&c.rank<=14&&c.suit>=0&&c.suit<=3));});
+
+test('PLO five-heart board still needs two heart hole cards; board trips need a hole pair for full house',()=>{const a=app();assert.notEqual(evaluate(a,'Ah Kd 3c 2s','Qh Jh 9h 7h 4h').score[0],5);assert.equal(evaluate(a,'Ac Kd 3h 2s','9h 9c 9d 7s 4h').score[0],3);});
+
+test('PLO same-category kickers compare lexicographically',()=>{const a=app();const cases=[[[0,14,13,11,9,7],[0,14,13,11,9,6]],[[1,10,14,8,6],[1,10,14,8,5]],[[2,12,8,14],[2,12,8,13]],[[3,9,14,8],[3,9,14,7]],[[5,14,12,9,7,4],[5,14,12,9,7,3]],[[6,10,8],[6,10,7]]];for(const [hi,lo] of cases){assert.ok(a.run('ploCompare('+JSON.stringify(hi)+','+JSON.stringify(lo)+')')>0);assert.ok(a.run('ploCompare('+JSON.stringify(lo)+','+JSON.stringify(hi)+')')<0);}});
+
+function beginPoker(a,n){a.run('startPlo()');a.node('ploCount').value=String(n);a.run('dealPlo()');}
+function revealAllPoker(a,n){for(let i=0;i<n;i++)for(let c=0;c<4;c++)a.run(`revealPlo(${i},${c})`);}
+test('PLO two and eight seats get four unique hidden cards each plus unique five-card board',()=>{for(const n of [2,8]){const a=app();beginPoker(a,n);const state=JSON.parse(a.run('JSON.stringify(plo)'));assert.equal(state.hands.length,n);assert.ok(state.hands.every(h=>h.length===4));assert.equal(state.board.length,5);const all=[...state.hands.flat(),...state.board];assert.equal(new Set(all.map(c=>c.rank+':'+c.suit)).size,n*4+5);assert.equal(state.count,0);assert.ok(state.revealed.flat().every(x=>!x));a.run('revealPlo(0,0);finishPlo()');assert.equal(a.run('plo.count'),0);a.advance(12000);assert.equal(a.run('plo.phase'),'reveal');assert.equal(a.run('plo.count'),0);assert.equal(a.node('plo-h-0-0').disabled,false);assert.doesNotMatch(a.node('ploStatus').textContent,/wins|Shared win/);}});
+test('PLO repeated tap reveals only one; winner waits for every card and final flip',()=>{const a=app();beginPoker(a,2);a.advance(12000);a.run('revealPlo(0,0);revealPlo(0,0)');assert.equal(a.run('plo.count'),1);for(let i=0;i<2;i++)for(let c=0;c<4;c++)if(i!==1||c!==3)a.run(`revealPlo(${i},${c})`);a.advance(1000);assert.equal(a.run('plo.phase'),'reveal');assert.equal(a.run('plo.count'),7);a.run('revealPlo(1,3)');assert.equal(a.run('plo.phase'),'settling');a.advance(449);assert.equal(a.run('plo.phase'),'settling');a.advance(1);assert.equal(a.run('plo.phase'),'showdown');assert.match(a.node('ploStatus').textContent,/wins|Shared win/);});
+test('PLO navigation and new hand cancel deal, runout and final resolution timers',()=>{for(const delay of [0,2000,12000])for(const action of ['goBack()','startPlo()']){const a=app();beginPoker(a,2);a.advance(delay);if(delay===12000)revealAllPoker(a,2);a.run(action);const status=a.node('ploStatus').textContent;a.advance(20000);assert.equal(a.node('ploStatus').textContent,status);if(action==='goBack()')assert.ok(a.active('lobby'));else assert.equal(a.run('plo.phase'),'setup');}});
+test('PLO shared winners are announced together, with no arbitrary suit tiebreak',()=>{const a=app();beginPoker(a,2);a.advance(12000);a.run('plo.hands='+JSON.stringify([pokerCards('Ac Kd 3h 2s'),pokerCards('Ad Ks 3c 2h')])+';plo.board='+JSON.stringify(pokerCards('Qh Jc Td 7s 4h')));revealAllPoker(a,2);a.advance(450);assert.match(a.node('ploStatus').textContent,/Shared win/);assert.equal(a.node('plo-seat-0').classList.contains('winner'),true);assert.equal(a.node('plo-seat-1').classList.contains('winner'),true);});
+test('finger movement retains marker identity and its countdown pulse class',()=>{const a=app();a.run('startFinger()');fingers(a,3);const first=a.node('fingerMarkers').children.find(n=>n.dataset.pointer==='1');a.event('fingerPad','pointermove',{pointerId:1,clientX:170});assert.equal(a.node('fingerMarkers').children.find(n=>n.dataset.pointer==='1'),first);assert.match(first.className,/countdown/);assert.equal(first.style.left,'170px');});
+test('PLO ignores duplicate deal, malformed reveal and stale actions outside poker',()=>{const a=app();beginPoker(a,2);const hands=a.run('JSON.stringify(plo.hands)');a.run('dealPlo()');assert.equal(a.run('JSON.stringify(plo.hands)'),hands);a.advance(12000);a.run('revealPlo(0,0.5);revealPlo(0.5,0);revealPlo(99,0);revealPlo(0,-1)');assert.equal(a.run('plo.count'),0);revealAllPoker(a,2);a.run('goBack();finishPlo();dealPlo();revealPlo(0,0)');a.advance(10000);assert.ok(a.active('lobby'));assert.notEqual(a.run('plo.phase'),'showdown');});
