@@ -87,7 +87,8 @@ body{
   font-size:.95rem;padding:12px;border-radius:12px;cursor:pointer;
   margin-bottom:24px;transition:all .2s;
 }
-.add-btn:hover{border-color:var(--secondary);color:var(--secondary)}
+.add-btn:disabled{opacity:.55;cursor:default;border-color:var(--border);color:var(--muted)}
+.add-btn:hover:not(:disabled){border-color:var(--secondary);color:var(--secondary)}
 
 /* ── LOBBY ── */
 .players-strip{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px;max-width:400px}
@@ -244,6 +245,20 @@ body{
 
 .cards-hint{color:var(--muted);font-size:.9rem;font-weight:700;text-align:center;margin-bottom:6px}
 
+/* ── FINGER PICK ── */
+#screen-finger{padding-bottom:24px}
+.finger-note{max-width:400px;text-align:center;color:var(--muted);font-size:.85rem;line-height:1.45;margin:8px 0}
+.finger-pad{position:relative;isolation:isolate;width:100%;max-width:400px;height:48vh;height:48svh;min-height:260px;max-height:480px;border:2px solid var(--border);border-radius:24px;background:var(--surface);overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.finger-pad.unavailable{opacity:.45}
+.finger-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);padding:36px;pointer-events:none;font-weight:800;font-size:1.1rem}
+.finger-marker{position:absolute;width:76px;height:76px;border:5px solid var(--ring);border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 20px var(--ring);display:flex;align-items:center;justify-content:center;color:var(--ring);font-family:'Fredoka One',cursive;font-size:1.3rem;pointer-events:none;background:var(--surface2)}
+.finger-marker.dim{opacity:.18;box-shadow:none}
+.finger-marker.chosen{width:98px;height:98px;border-width:8px;box-shadow:0 0 40px var(--ring);z-index:2}
+#fingerStatus{min-height:46px;text-align:center;max-width:400px;font-weight:800;color:var(--accent);margin:8px 0}
+#fingerNames{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+#fingerNames .btn{max-width:100%;overflow-wrap:anywhere;min-height:44px}
+#fingerIdentity{width:100%;max-width:400px;text-align:center}
+
 /* ── ELIMINATION ── */
 .elim-emoji{font-size:6rem;animation:popIn .4s ease;margin-top:16px}
 .elim-title{font-size:2rem;text-align:center;color:var(--danger);margin-top:8px}
@@ -302,7 +317,7 @@ body{
   <p class="logo-sub">The dinner bill decider. No arguments. Just vibes.</p>
 
   <div class="player-list" id="playerList"></div>
-  <button class="add-btn" onclick="addPlayer()">＋ Add Player</button>
+  <button class="add-btn" id="addPlayerBtn" onclick="addPlayer()">＋ Add Player</button>
 
   <button class="btn btn-primary btn-lg btn-full" onclick="goToLobby()">
     Let's Go 🎲
@@ -335,6 +350,15 @@ body{
         <div class="game-title">Reaction Duel</div>
         <div class="game-desc">Wait for green. Tap fast. Slowest one pays.</div>
         <span class="game-tag tag-skill">🧠 Skill</span>
+      </div>
+    </div>
+
+    <div class="game-card" role="button" tabindex="0" onclick="startFinger()">
+      <div class="game-icon">👆</div>
+      <div class="game-info">
+        <div class="game-title">Finger Pick</div>
+        <div class="game-desc">Everyone holds one finger. One unlucky finger pays.</div>
+        <span class="game-tag tag-luck">🎰 Luck · Multi-touch</span>
       </div>
     </div>
 
@@ -388,7 +412,7 @@ body{
 <!-- ═══════════════════════════════════════════ -->
 <div class="screen" id="screen-reaction">
   <div class="turn-bar" id="reactionTurnBar">
-    <div class="turn-label">Contestant</div>
+    <div class="turn-label" id="reactionRoundLabel">Contestant</div>
     <div class="turn-name fredoka" id="reactionTurnName">—</div>
   </div>
 
@@ -399,11 +423,28 @@ body{
   </div>
 
   <div class="reaction-scoreboard" id="reactionScoreboard" style="display:none"></div>
+  <button id="reactionContinue" class="btn btn-primary btn-full" style="display:none;margin-top:18px" onclick="continueReaction()">Continue</button>
 </div>
 
 <!-- ═══════════════════════════════════════════ -->
 <!-- SCREEN 5 · CARDS GAME                      -->
 <!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="screen-finger">
+  <h2 class="fredoka" style="font-size:1.9rem">👆 Finger Pick</h2>
+  <p class="finger-note">Put the phone flat. One finger per person in the play area. Keep holding until one ring is chosen!</p>
+  <div id="fingerStatus" role="status" aria-live="polite"></div>
+  <div class="finger-pad" id="fingerPad" aria-label="Multi-touch finger selection area">
+    <div class="finger-center" id="fingerCenter">Place your fingers here</div>
+    <div id="fingerMarkers" aria-hidden="true"></div>
+  </div>
+  <p class="finger-note" id="fingerSupport"></p>
+  <div id="fingerIdentity" hidden>
+    <p class="finger-note">Whose finger had the bright numbered ring?</p>
+    <div id="fingerNames"></div>
+  </div>
+  <button class="btn btn-ghost btn-sm" style="margin-top:14px" onclick="resetFinger()">🔄 New pick</button>
+</div>
+
 <div class="screen" id="screen-cards">
   <h2 class="fredoka" style="font-size:1.9rem;margin-bottom:6px">🃏 Card Draw</h2>
   <p class="cards-hint" id="cardsHint">Tap your name to draw your card!</p>
@@ -534,6 +575,7 @@ function cancelPending() {
 }
 
 function showScreen(id) {
+  stopFinger();
   cancelPending();
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -564,6 +606,9 @@ function removePlayer(i) {
 
 function savePlayers() { saveSetting('whopays-players',JSON.stringify(players.map(p => p.name))); }
 function renderSetup() {
+  const add = document.getElementById('addPlayerBtn');
+  add.disabled = players.length >= 8;
+  add.textContent = add.disabled ? 'Maximum 8 players' : '＋ Add Player';
   document.getElementById('playerList').innerHTML = players.map((p, i) => `
     <div class="player-row">
       <div class="player-num">${EMOJIS[i]}</div>
@@ -737,14 +782,16 @@ function startReaction() {
   initReaction();
 }
 
-function initReaction(contestants = players.map((_, i) => i)) {
+function initReaction(contestants = players.map((_, i) => i), tiebreak = false) {
   cancelPending();
-  rxn = { contestants, playerIdx: 0, scores: [], phase: 'idle', goTime: 0, timer: null };
+  rxn = { contestants, tiebreak, playerIdx: 0, scores: [], phase: 'idle', goTime: 0, timer: null };
+  document.getElementById('reactionContinue').style.display = 'none';
+  document.getElementById('reactionRoundLabel').textContent = tiebreak ? 'Tiebreak round · Contestant' : 'Contestant';
   document.getElementById('reactionScoreboard').style.display = 'none';
   document.getElementById('reactionTurnBar').style.display = '';
   document.getElementById('reactionZone').style.display = '';
   document.getElementById('reactionTurnName').textContent = pname(contestants[0]);
-  setRxnZone('idle', 'Tap to Start', contestants.length < players.length ? 'Tiebreak: slowest pays' : 'Wait for green. Early taps lose to valid times.', '👆');
+  setRxnZone('idle', 'Tap to Start', tiebreak ? 'Tiebreak: slowest pays' : 'Wait for green. Early taps lose to valid times.', '👆');
 }
 
 function setRxnZone(phase, bigText, hint, emoji) {
@@ -803,28 +850,22 @@ function nextReactionPlayer() {
   }
   rxn.phase = 'idle';
   document.getElementById('reactionTurnName').textContent = pname(rxn.contestants[rxn.playerIdx]);
-  setRxnZone('idle', 'Tap to Start', `${pname(rxn.contestants[rxn.playerIdx])}'s turn`, '👆');
+  setRxnZone('idle', 'Tap to Start', `${rxn.tiebreak ? 'Tiebreak · ' : ''}${pname(rxn.contestants[rxn.playerIdx])}'s turn`, '👆');
 }
 
 function endReaction() {
   const sorted   = [...rxn.scores].sort((a, b) => b.ms - a.ms);
   const worst    = sorted[0];
   const tied = sorted.filter(r => r.ms === worst.ms);
-  if (tied.length > 1) {
-    rxn.phase = 'done-all';
-    setRxnZone('done', 'Tiebreak!', 'Tied slowest players will play again. Pass the phone when prompted.', '🤝');
-    later(() => initReaction(tied.map(r => r.player)), 2200);
-    return;
-  }
   const board    = document.getElementById('reactionScoreboard');
 
   board.style.display = 'flex';
   board.innerHTML     = `
     <h3 class="fredoka" style="text-align:center;font-size:1.5rem;margin-bottom:6px">Results 📊</h3>
     ${sorted.map((r, i) => `
-      <div class="score-row ${i === 0 ? 'loser-row' : ''}">
-        <span class="score-name">${i === 0 ? '💀 ' : i === sorted.length - 1 ? '⚡ ' : ''}${esc(r.name)}</span>
-        <span class="score-time ${i === 0 ? 'bad' : ''}">${r.label}</span>
+      <div class="score-row ${r.ms === worst.ms ? 'loser-row' : ''}">
+        <span class="score-name">${r.ms === worst.ms ? (tied.length > 1 ? '🤝 ' : '💀 ') : i === sorted.length - 1 ? '⚡ ' : ''}${esc(r.name)}</span>
+        <span class="score-time ${r.ms === worst.ms ? 'bad' : ''}">${r.label}</span>
       </div>
     `).join('')}
   `;
@@ -833,14 +874,25 @@ function endReaction() {
   document.getElementById('reactionZone').style.display    = 'none';
   rxn.phase = 'done-all';
 
-  later(() => {
-    showElim(
-      worst.name,
-      '🐢',
-      'Reaction Duel',
-      worst.ms === Infinity ? `${worst.name} tapped before green! Dinner's on the early bird. 😬` : `${worst.name} had the slowest reaction time (${worst.label}). Dinner's on the tortoise! 🐌`
-    );
-  }, 2600);
+  rxn.outcome = { worst, tied };
+  const next = document.getElementById('reactionContinue');
+  next.textContent = tied.length > 1 ? 'Start tiebreak 🤝' : 'Continue →';
+  next.style.display = '';
+  if (tied.length > 1) {
+    const note = document.createElement('p');
+    note.className = 'cards-hint';
+    note.textContent = 'Tied slowest players play again. Everyone else is safe.';
+    board.appendChild(note);
+  }
+}
+
+function continueReaction() {
+  if (!document.getElementById('screen-reaction').classList.contains('active') || rxn.phase !== 'done-all' || !rxn.outcome) return;
+  const { worst, tied } = rxn.outcome;
+  rxn.outcome = null;
+  if (tied.length > 1) { initReaction(tied.map(r => r.player), true); return; }
+  showElim(worst.name, '🐢', 'Reaction Duel',
+    worst.ms === Infinity ? `${worst.name} tapped before green! Dinner's on the early bird. 😬` : `${worst.name} had the slowest reaction time (${worst.label}). Dinner's on the tortoise! 🐌`);
 }
 
 // ════════════════════════════════════════════════════════
@@ -946,6 +998,154 @@ function resolveCards() {
     );
   }, 1200);
 }
+
+// ════════════════════════════════════════════════════════
+//  GAME 4 · FINGER PICK
+// ════════════════════════════════════════════════════════
+const FINGER_COLORS = ['#ff6b35','#4ecdc4','#ffe66d','#b69cff','#ff83b5','#51cf66','#70baff','#ffffff'];
+let finger = { active: false, points: new Map(), timer: null, phase: 'idle' };
+const fingerPad = document.getElementById('fingerPad');
+
+function clearFingerCountdown() {
+  if (finger.timer !== null) { window.clearTimeout(finger.timer); pendingTimers.delete(finger.timer); }
+  finger.timer = null;
+}
+function stopFinger() {
+  finger.active = false;
+  clearFingerCountdown();
+  for (const id of finger.points.keys()) {
+    try { if (fingerPad.hasPointerCapture(id)) fingerPad.releasePointerCapture(id); } catch {}
+  }
+  finger.points.clear();
+}
+function startFinger() {
+  backTarget = 'screen-lobby';
+  showScreen('screen-finger');
+  resetFinger();
+}
+function resetFinger() {
+  stopFinger();
+  if (!document.getElementById('screen-finger').classList.contains('active')) return;
+  const capacity = navigator.maxTouchPoints || 0;
+  const supported = 'PointerEvent' in window && capacity >= players.length;
+  finger = { active: supported, points: new Map(), timer: null, phase: 'waiting', expected: players.length, chosen: null };
+  fingerPad.classList.toggle('unavailable', !supported);
+  document.getElementById('fingerMarkers').innerHTML = '';
+  document.getElementById('fingerIdentity').hidden = true;
+  document.getElementById('fingerCenter').textContent = supported ? 'Place your fingers here' : 'Multi-touch required';
+  document.getElementById('fingerSupport').textContent = supported
+    ? `Need ${players.length} fingers together. Lift all fingers before a new pick. If your phone misses touches, try another game.`
+    : capacity < 2 || !('PointerEvent' in window)
+      ? 'Use a multi-touch phone or tablet for this mode. Mouse clicks cannot join. The other games work on this device.'
+      : `This device reports a maximum of ${capacity} simultaneous touches, but your group has ${players.length} players. Use another device or another game so everyone is included.`;
+  document.getElementById('fingerStatus').textContent = supported ? `0 / ${players.length} fingers · Everyone join in` : 'Try another device or game';
+  document.getElementById('fingerNames').innerHTML = players.map((p,i) => `<button class="btn btn-ghost" onclick="confirmFinger(${i})">${EMOJIS[i]} ${esc(pname(i))}</button>`).join('');
+}
+function renderFingers() {
+  const markers = document.getElementById('fingerMarkers');
+  markers.innerHTML = '';
+  for (const [id, point] of finger.points) {
+    const node = document.createElement('div');
+    node.className = 'finger-marker' + (finger.phase === 'chosen' ? (id === finger.chosen ? ' chosen' : ' dim') : '');
+    node.style.setProperty('--ring', FINGER_COLORS[point.slot % FINGER_COLORS.length]);
+    node.style.left = point.x + 'px'; node.style.top = point.y + 'px';
+    node.textContent = String(point.slot + 1);
+    markers.appendChild(node);
+  }
+}
+function updateFingerCount() {
+  clearFingerCountdown();
+  if (!finger.active || finger.phase === 'chosen') return;
+  const count = finger.points.size;
+  document.getElementById('fingerCenter').textContent = count ? '' : 'Place your fingers here';
+  finger.phase = 'waiting';
+  if (count !== finger.expected) {
+    document.getElementById('fingerStatus').textContent = `${count} / ${finger.expected} fingers · ` + (count > finger.expected ? 'One finger each! Lift extra fingers.' : 'Keep holding. Waiting for everyone…');
+    return;
+  }
+  finger.phase = 'countdown';
+  document.getElementById('fingerStatus').textContent = 'Everyone is in! Hold still… 2';
+  tone(520,'sine',.08,.15);
+  finger.timer = later(() => {
+    document.getElementById('fingerStatus').textContent = 'Keep holding… 1';
+    tone(660,'sine',.08,.15);
+    finger.timer = later(chooseFinger,1000);
+  },1000);
+}
+function randomFingerIndex(length) {
+  // Rejection sampling avoids modulo bias. Every held finger gets equal odds.
+  const values = new Uint32Array(1);
+  const limit = Math.floor(4294967296 / length) * length;
+  do { crypto.getRandomValues(values); } while (values[0] >= limit);
+  return values[0] % length;
+}
+function chooseFinger() {
+  finger.timer = null;
+  if (!finger.active || finger.phase !== 'countdown' || finger.points.size !== finger.expected) return;
+  const ids = [...finger.points.keys()];
+  finger.chosen = ids[randomFingerIndex(ids.length)];
+  finger.phase = 'chosen';
+  const number = finger.points.get(finger.chosen).slot + 1;
+  document.getElementById('fingerStatus').textContent = `Finger ${number} pays! Everyone can lift now.`;
+  document.getElementById('fingerCenter').textContent = '';
+  renderFingers(); // Freeze ring positions until the next round, even after release.
+  snd.lose();
+}
+function confirmFinger(index) {
+  if (!finger.active || finger.phase !== 'chosen' || finger.points.size || !players[index]) return;
+  const name = pname(index);
+  showElim(name, '👆', 'Finger Pick', `${name}'s finger was chosen. Dinner's on you! 🍽️`);
+}
+fingerPad.addEventListener('pointerdown', event => {
+  if (event.pointerType !== 'touch') return;
+  event.preventDefault();
+  if (!finger.active || finger.phase === 'chosen' || finger.points.has(event.pointerId)) return;
+  const box = fingerPad.getBoundingClientRect();
+  const occupied = new Set([...finger.points.values()].map(p => p.slot));
+  let slot = 0; while (occupied.has(slot)) slot++;
+  finger.points.set(event.pointerId, { x:event.clientX-box.left, y:event.clientY-box.top, slot });
+  try { fingerPad.setPointerCapture(event.pointerId); } catch {}
+  renderFingers(); updateFingerCount();
+});
+fingerPad.addEventListener('pointermove', event => {
+  if (event.pointerType !== 'touch') return;
+  event.preventDefault();
+  if (!finger.active || finger.phase === 'chosen') return;
+  const point = finger.points.get(event.pointerId);
+  if (!point) return;
+  const box = fingerPad.getBoundingClientRect();
+  if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) {
+    releaseFinger(event); return;
+  }
+  point.x = event.clientX-box.left; point.y = event.clientY-box.top;
+  renderFingers();
+});
+function releaseFinger(event) {
+  if (!finger.active || !finger.points.has(event.pointerId)) return;
+  if (event.cancelable) event.preventDefault();
+  finger.points.delete(event.pointerId);
+  try { if (fingerPad.hasPointerCapture(event.pointerId)) fingerPad.releasePointerCapture(event.pointerId); } catch {}
+  if (finger.phase === 'chosen') {
+    if (!finger.points.size) document.getElementById('fingerIdentity').hidden = false;
+    return;
+  }
+  renderFingers(); updateFingerCount();
+}
+for (const type of ['pointerup','pointercancel','lostpointercapture']) fingerPad.addEventListener(type, releaseFinger);
+fingerPad.addEventListener('contextmenu', event => event.preventDefault());
+window.addEventListener('resize', () => {
+  if (finger.active && finger.phase !== 'chosen' && finger.points.size) {
+    resetFinger();
+    document.getElementById('fingerStatus').textContent = 'Screen changed. Lift all fingers, then place them again.';
+  }
+});
+// Never finish a pick while the browser is backgrounded or a call interrupts play.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && finger.active) {
+    resetFinger();
+    document.getElementById('fingerStatus').textContent = 'Round paused. Lift all fingers, then place them again.';
+  }
+});
 
 // ─────────────────────────────────────────────
 //  BOOT
