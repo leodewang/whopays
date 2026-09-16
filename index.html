@@ -306,7 +306,6 @@ body{
 [hidden]{display:none!important}
 /* Original table-style dealing, flip reveals, and touch-ring choreography. */
 .finger-marker{animation:fingerPulse 1.4s ease-in-out infinite;will-change:transform}
-.finger-marker.countdown{animation-duration:.55s}
 .finger-marker.dim{animation:none}
 .finger-marker.chosen{animation:fingerChosen .65s cubic-bezier(.2,.8,.2,1) both}
 @keyframes fingerPulse{50%{transform:translate(-50%,-50%) scale(1.13);box-shadow:0 0 32px var(--ring)}}
@@ -397,7 +396,7 @@ body{
       <div class="game-icon">👆</div>
       <div class="game-info">
         <div class="game-title">Finger Pick</div>
-        <div class="game-desc">Everyone holds one finger. One unlucky finger pays.</div>
+        <div class="game-desc">Get picked and you’re safe. Last player left pays.</div>
         <span class="game-tag tag-luck">🎰 Luck · Multi-touch</span>
       </div>
     </div>
@@ -489,18 +488,19 @@ body{
 </div>
 <div class="screen" id="screen-finger">
   <h2 class="fredoka" style="font-size:1.9rem">👆 Finger Pick</h2>
-  <p class="finger-note">Put the phone flat. One finger per person in the play area. Keep holding until one ring is chosen!</p>
+  <p class="finger-note">Put the phone flat. Remaining players hold one finger each. The chosen finger is safe! Repeat until one player is left to pay.</p>
   <div id="fingerStatus" role="status" aria-live="polite"></div>
+  <p class="finger-note" id="fingerSafe" aria-live="polite"></p>
   <div class="finger-pad" id="fingerPad" aria-label="Multi-touch finger selection area">
     <div class="finger-center" id="fingerCenter">Place your fingers here</div>
     <div id="fingerMarkers" aria-hidden="true"></div>
   </div>
   <p class="finger-note" id="fingerSupport"></p>
   <div id="fingerIdentity" hidden>
-    <p class="finger-note">Whose finger had the bright numbered ring?</p>
+    <p class="finger-note">Whose finger had the bright numbered ring? That player is safe.</p>
     <div id="fingerNames"></div>
   </div>
-  <button class="btn btn-ghost btn-sm" style="margin-top:14px" onclick="resetFinger()">🔄 New pick</button>
+  <button class="btn btn-ghost btn-sm" style="margin-top:14px" onclick="resetFinger(true)">🔄 Restart game</button>
 </div>
 
 <div class="screen" id="screen-cards">
@@ -1171,25 +1171,28 @@ function stopFinger() {
 function startFinger() {
   backTarget = 'screen-lobby';
   showScreen('screen-finger');
-  resetFinger();
+  resetFinger(true);
 }
-function resetFinger() {
+function resetFinger(newGame = false) {
   stopFinger();
   if (!document.getElementById('screen-finger').classList.contains('active')) return;
+  const remaining = newGame || !finger.remaining ? players.map((_,i)=>i) : [...finger.remaining];
+  const safe = newGame || !finger.safe ? [] : [...finger.safe];
   const capacity = navigator.maxTouchPoints || 0;
-  const supported = 'PointerEvent' in window && capacity >= players.length;
-  finger = { active: supported, points: new Map(), timer: null, phase: 'waiting', expected: players.length, chosen: null };
+  const supported = 'PointerEvent' in window && capacity >= remaining.length;
+  finger = { active: supported, points: new Map(), timer: null, phase: 'waiting', expected: remaining.length, chosen: null, remaining, safe };
   fingerPad.classList.toggle('unavailable', !supported);
   document.getElementById('fingerMarkers').innerHTML = '';
   document.getElementById('fingerIdentity').hidden = true;
   document.getElementById('fingerCenter').textContent = supported ? 'Place your fingers here' : 'Multi-touch required';
+  document.getElementById('fingerSafe').textContent = safe.length ? 'Safe: ' + safe.map(pname).join(', ') : 'Nobody is safe yet. Get picked to escape the bill!';
   document.getElementById('fingerSupport').textContent = supported
-    ? `Need ${players.length} fingers together. Lift all fingers before a new pick. If your phone misses touches, try another game.`
+    ? `Need ${remaining.length} fingers together. Hold for about six seconds. Selected player sits out the next pick.`
     : capacity < 2 || !('PointerEvent' in window)
       ? 'Use a multi-touch phone or tablet for this mode. Mouse clicks cannot join. The other games work on this device.'
-      : `This device reports a maximum of ${capacity} simultaneous touches, but your group has ${players.length} players. Use another device or another game so everyone is included.`;
-  document.getElementById('fingerStatus').textContent = supported ? `0 / ${players.length} fingers · Everyone join in` : 'Try another device or game';
-  document.getElementById('fingerNames').innerHTML = players.map((p,i) => `<button class="btn btn-ghost" onclick="confirmFinger(${i})">${EMOJIS[i]} ${esc(pname(i))}</button>`).join('');
+      : `This device reports a maximum of ${capacity} simultaneous touches, but ${remaining.length} players remain. Use another device or another game so everyone is included.`;
+  document.getElementById('fingerStatus').textContent = supported ? `0 / ${remaining.length} fingers · Remaining players join in` : 'Try another device or game';
+  document.getElementById('fingerNames').innerHTML = remaining.map(i => `<button class="btn btn-ghost" onclick="confirmFinger(${i})">${EMOJIS[i]} ${esc(pname(i))}</button>`).join('');
 }
 function renderFingers() {
   const markers = document.getElementById('fingerMarkers');
@@ -1197,7 +1200,7 @@ function renderFingers() {
   for (const [id, point] of finger.points) {
     let node = [...markers.children].find(n => n.dataset.pointer === String(id));
     if (!node) { node = document.createElement('div'); node.dataset.pointer = String(id); markers.appendChild(node); }
-    node.className = 'finger-marker' + (finger.phase === 'chosen' ? (id === finger.chosen ? ' chosen' : ' dim') : (finger.phase === 'countdown' ? ' countdown' : ''));
+    node.className = 'finger-marker' + (finger.phase === 'chosen' ? (id === finger.chosen ? ' chosen' : ' dim') : '');
     node.style.setProperty('--ring', FINGER_COLORS[point.slot % FINGER_COLORS.length]);
     node.style.left = point.x + 'px'; node.style.top = point.y + 'px';
     node.textContent = String(point.slot + 1);
@@ -1216,13 +1219,8 @@ function updateFingerCount() {
   }
   finger.phase = 'countdown';
   renderFingers();
-  document.getElementById('fingerStatus').textContent = 'Everyone is in! Hold still… 2';
-  tone(520,'sine',.08,.15);
-  finger.timer = later(() => {
-    document.getElementById('fingerStatus').textContent = 'Keep holding… 1';
-    tone(660,'sine',.08,.15);
-    finger.timer = later(chooseFinger,1000);
-  },1000);
+  document.getElementById('fingerStatus').textContent = 'Everyone is in! Keep holding…';
+  finger.timer = later(chooseFinger,6000);
 }
 function randomFingerIndex(length) {
   // Rejection sampling avoids modulo bias. Every held finger gets equal odds.
@@ -1238,15 +1236,22 @@ function chooseFinger() {
   finger.chosen = ids[randomFingerIndex(ids.length)];
   finger.phase = 'chosen';
   const number = finger.points.get(finger.chosen).slot + 1;
-  document.getElementById('fingerStatus').textContent = `Finger ${number} pays! Everyone can lift now.`;
+  document.getElementById('fingerStatus').textContent = `Finger ${number} is safe! Everyone lift, then confirm who it was.`;
   document.getElementById('fingerCenter').textContent = '';
   renderFingers(); // Freeze ring positions until the next round, even after release.
-  snd.lose();
+  snd.win();
 }
 function confirmFinger(index) {
-  if (!finger.active || finger.phase !== 'chosen' || finger.points.size || !players[index]) return;
-  const name = pname(index);
-  showElim(name, '👆', 'Finger Pick', `${name}'s finger was chosen. Dinner's on you! 🍽️`, index);
+  if (!finger.active || finger.phase !== 'chosen' || finger.points.size || !finger.remaining.includes(index)) return;
+  finger.safe.push(index);
+  finger.remaining = finger.remaining.filter(i=>i!==index);
+  if (finger.remaining.length === 1) {
+    const loser = finger.remaining[0];
+    const name = pname(loser);
+    showElim(name, '👆', 'Finger Pick', `${name} is the last player left. Dinner's on you! 🍽️`, loser);
+    return;
+  }
+  resetFinger();
 }
 fingerPad.addEventListener('pointerdown', event => {
   if (event.pointerType !== 'touch') return;
