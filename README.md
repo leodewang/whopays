@@ -7,7 +7,7 @@ Single-file dinner party game for 2–8 players sharing one phone. Open index.ht
 - Croc Roulette: one random tooth snaps; its picker loses. Teeth can be configured before a round.
 - Reaction Duel: slowest valid time loses. A false start loses to any valid time. Tied worst players replay until one loser remains.
 - Card Draw: lowest rank loses, aces high. Equal ranks use clubs < diamonds < hearts < spades.
-- Finger Pick: everyone holds one finger in the pad. Once the configured group is present, hold for the countdown; one ring is selected at random. After lifting fingers, the selected person taps their name to confirm the bill-payer. Lifting or adding a finger restarts the countdown. Multi-touch hardware limits apply; use another game if the device cannot register the whole group.
+- Finger Pick: remaining players hold one finger each for six seconds. The selected person lifts, confirms their name, and becomes safe. Repeat until the last player remains to pay. Adding or lifting a finger restarts the hold. Multi-touch hardware limits apply.
 - PLO Showdown: choose 2–8 seats, deal four face-down cards each, watch the flop/turn/river, then tap each hole card to reveal it. Only after every card is revealed does the app announce the winner(s). Standard Omaha high uses exactly two hole cards plus three board cards. Suits never break ties. There are no betting rounds and the poker winner is not automatically declared the bill-payer.
 - Names and mute preferences stay in this browser when localStorage is available. Saved leaderboard results sync across phones through Supabase. No payment processing.
 
@@ -35,7 +35,7 @@ Finger Pick uses original inline code and the existing Who Pays visual theme. No
 
 ### Phone acceptance checks
 
-1. With two configured players, hold two fingers until one ring is selected; lift fingers and confirm the selected person's name.
+1. With two configured players, hold two fingers until one ring is selected; lift fingers and confirm the selected person's name as safe; the other player pays.
 2. Repeat while moving a finger inside the pad. Lift a finger during countdown and verify it restarts when everyone returns.
 3. Add an extra finger during countdown; verify no subset is selected.
 4. Reset, navigate back, rotate, or background the app during collection. Verify no stale selection appears.
@@ -90,3 +90,12 @@ The security advisor reports only the expected INFO notices for RLS enabled with
 `python tests/api.test.py /path/to/disposable-group-keys.json` exercises the actual deployed API. The JSON must contain `group`, `owner`, `member` for a separately provisioned disposable test group. Never use the real dinner group. Checks include unauthorized/cross-group requests, concurrent duplicates, conflicting retries, invalid amounts, owner-only corrections/void/rotation, cross-game and dinner filtering, and revocation. Remove the disposable records afterwards through the administrator connection.
 
 Before use, merge the PR and test on a phone: open the private setup link, play/save a result, open the member link on a second phone and refresh, correct the amount as owner, and verify the changed total on both devices. Browser layout and real phone touch/audio still require that check.
+
+
+## Finger Pick: safe-player elimination
+
+Every selection makes one player safe. With four players, play three selections (4 fingers, then 3, then 2); the final unselected player pays. After each pick, everyone lifts and taps the selected person's name. Only remaining players can be chosen; a visible list tracks safe players. One final result is captured for the leaderboard, with everyone except the last player marked as a winner.
+
+Selection occurs after six uninterrupted seconds with exactly the remaining number of fingers. There is no numeric countdown, countdown beep, or pulse speed-up: the same 1.4-second pulse continues before and after all fingers arrive. Changing the held finger set restarts the six-second wait. Interruptions preserve confirmed safe players; Restart game or re-entering from the lobby resets the full group.
+
+Phone check: start with four players, confirm three safe picks, verify 4 → 3 → 2 fingers and one final loser. Check the consistent pulse speed, six-second selection delay, and reduced-motion preference. Automated timing/state tests do not establish real-device multi-touch behavior.
