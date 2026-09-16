@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
 <title>Who Pays? 🍽️</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -336,6 +337,9 @@ body{
 #ploStatus{text-align:center;font-weight:800;min-height:42px;color:var(--accent);overflow-wrap:anywhere}
 @media(prefers-reduced-motion:reduce){.finger-marker,.finger-marker.chosen,.plo-card.dealt{animation:none!important}.plo-inner{transition:none!important}}
 
+
+.score-panel{width:100%;max-width:440px}.score-panel input,.score-panel select{width:100%;font:inherit;font-size:16px;color:var(--text);background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:12px;margin:6px 0 12px;min-width:0}
+.score-panel .btn{margin:6px 0}.score-entry{padding:12px;background:var(--surface);border-radius:14px;margin:10px 0;overflow-wrap:anywhere}.score-entry label{display:block}.score-filters{display:flex;gap:8px}.score-filters label{flex:1;min-width:0;font-size:.8rem}.score-table-wrap{overflow-x:auto}.score-table{width:100%;border-collapse:collapse;font-size:.9rem}.score-table th,.score-table td{padding:10px 5px;text-align:right;border-bottom:1px solid var(--border)}.score-table th:first-child{text-align:left;overflow-wrap:anywhere;max-width:135px}.score-table small{display:block;color:var(--muted)}.score-secret{overflow-wrap:anywhere;user-select:all;margin:12px 0}.score-panel summary{padding:14px 0;cursor:pointer}
 </style>
 </head>
 <body>
@@ -369,6 +373,7 @@ body{
   <div class="players-strip" id="playersStrip"></div>
   <button class="btn btn-ghost btn-sm" style="margin-bottom:18px" onclick="showScreen('screen-setup')">Edit players</button>
 
+  <button class="btn btn-secondary btn-full" style="margin-bottom:18px" onclick="openLeaderboard()">🏆 Shared leaderboard</button>
   <div class="game-list">
     <div class="game-card" role="button" tabindex="0" onclick="startCroc()">
       <div class="game-icon">🐊</div>
@@ -476,6 +481,7 @@ body{
     <p class="plo-note" id="ploRoster"></p><button class="btn btn-primary btn-full" onclick="dealPlo()">Deal a hand</button></div>
     <div id="ploStatus" role="status" aria-live="polite"></div>
     <div id="ploTable" hidden><div class="plo-board"><div class="plo-row" id="ploBoard"></div></div><div id="ploSeats"></div></div>
+    <button id="ploScore" hidden class="btn btn-secondary btn-full" onclick="openScoreRecord()">Save score & amounts</button>
     <button id="ploNew" hidden class="btn btn-primary btn-full" onclick="dealPlo()">New hand</button>
     <button class="btn btn-ghost btn-full" style="margin-top:12px" onclick="startPlo()">Change player count</button>
     <button class="btn btn-ghost btn-full" style="margin-top:10px" onclick="showScreen('screen-lobby')">Back to games</button>
@@ -512,6 +518,7 @@ body{
   <h1 class="fredoka elim-name" id="elimName">—</h1>
   <p class="elim-msg" id="elimMsg">—</p>
 
+  <button class="btn btn-secondary btn-full" onclick="openScoreRecord()">Save score & amount</button>
   <div class="btn-row">
     <button class="btn btn-primary btn-full" onclick="showScreen('screen-lobby')">
       🎲 Play Another Game
@@ -531,9 +538,38 @@ body{
   <h1 class="fredoka result-name" id="finalName">—</h1>
   <div class="result-msg" id="finalMsg">—</div>
 
+  <button class="btn btn-secondary btn-full" onclick="openScoreRecord()">Save score & amount</button>
   <div class="btn-row">
     <button class="btn btn-primary btn-full" onclick="goToLobby()">🍽️ New Round</button>
   </div>
+</div>
+
+<div class="screen" id="screen-leaderboard">
+ <h2 class="fredoka">🏆 Leaderboard</h2>
+ <div class="score-panel">
+ <p id="scoreMessage" role="status" aria-live="polite" class="plo-note"></p>
+ <div id="scoreConnect"><label for="scoreCode">Private group code</label><input id="scoreCode" type="password" autocomplete="off" spellcheck="false"><button class="btn btn-primary btn-full" onclick="connectScoreGroup()">Join group</button><p class="plo-note">Ask the host for the code. Anyone with it can view and record results. Access lasts for this browser session.</p></div>
+ <div id="scoreConnected" hidden>
+ <div class="score-filters"><label>Game<select id="scoreMode" onchange="loadLeaderboard()"><option value="dinner">Dinner games</option><option value="plo">PLO</option></select></label><label>Period<select id="scoreScope" onchange="loadLeaderboard()"><option value="all">All time</option><option value="dinner">This dinner</option></select></label><label>Sort<select id="scoreSort" onchange="loadLeaderboard()"><option value="losses">Most losses</option><option value="wins">Most wins</option><option value="cents">Most paid</option></select></label></div>
+ <div id="scoreBoard"></div>
+ <button class="btn btn-ghost btn-sm" onclick="loadLeaderboard()">Refresh</button>
+ <button class="btn btn-ghost btn-sm" onclick="newScoreDinner()">New dinner</button>
+ <p class="plo-note">“This dinner” includes rounds started on this phone. All-time totals include every phone in the group. Dinner win = avoided the bill. PLO ranks separately.</p>
+ <details><summary>Recent rounds & corrections</summary><div id="scoreHistory"></div></details>
+ <div id="scoreOwnerTools" hidden><p class="plo-note">Owner access · Keep your owner key private. Correct result replaces the old round atomically and preserves both in history.</p><button class="btn btn-ghost btn-full" onclick="rotateScoreInvite()">Replace friends’ group code</button><p id="scoreInvite" class="score-secret"></p></div>
+ <button class="btn btn-ghost btn-sm" onclick="disconnectScoreGroup()">Disconnect this phone</button>
+ </div>
+ <h3 id="scoreDraftCount" style="margin-top:24px">Unsaved rounds</h3><div id="scoreDrafts"></div>
+ <button class="btn btn-ghost btn-full" onclick="showScreen('screen-lobby')">Back to games</button>
+ </div>
+</div>
+<div class="screen" id="screen-score-record">
+ <h2 class="fredoka" id="scoreRecordTitle">Save result</h2><div class="score-panel">
+ <p id="scoreRecordStatus" role="status" aria-live="polite" class="plo-note"></p>
+ <div id="scoreRecordFields"></div>
+ <button id="scoreSave" class="btn btn-primary btn-full" onclick="saveScoreRound()">Save score & amount</button>
+ <button class="btn btn-ghost btn-full" onclick="openLeaderboard()">Leaderboard & unsaved rounds</button>
+ </div>
 </div>
 
 <script>
@@ -684,8 +720,9 @@ function goToLobby() {
 // ─────────────────────────────────────────────
 //  ELIMINATION + RESULT
 // ─────────────────────────────────────────────
-function showElim(name, emoji, gameTitle, msg) {
+function showElim(name, emoji, gameTitle, msg, loserIndex) {
   loserName = name;
+  scoreCaptureDinner(name,gameTitle,loserIndex);
   document.getElementById('elimEmoji').textContent  = emoji;
   document.getElementById('elimTitle').textContent  = gameTitle + ': Game Over!';
   document.getElementById('elimName').textContent   = name;
@@ -801,7 +838,7 @@ function clickTooth(i) {
         pname(croc.currentPlayer),
         '😬',
         'Croc Roulette',
-        `${pname(croc.currentPlayer)} picked the cursed tooth! The croc snapped! 🐊`
+        `${pname(croc.currentPlayer)} picked the cursed tooth! The croc snapped! 🐊`, croc.currentPlayer
       );
     }, 700);
   } else {
@@ -944,7 +981,7 @@ function continueReaction() {
   rxn.outcome = null;
   if (tied.length > 1) { initReaction(tied.map(r => r.player), true); return; }
   showElim(worst.name, '🐢', 'Reaction Duel',
-    worst.ms === Infinity ? `${worst.name} tapped before green! Dinner's on the early bird. 😬` : `${worst.name} had the slowest reaction time (${worst.label}). Dinner's on the tortoise! 🐌`);
+    worst.ms === Infinity ? `${worst.name} tapped before green! Dinner's on the early bird. 😬` : `${worst.name} had the slowest reaction time (${worst.label}). Dinner's on the tortoise! 🐌`, worst.player);
 }
 
 // ════════════════════════════════════════════════════════
@@ -1046,7 +1083,7 @@ function resolveCards() {
       pname(loserIdx),
       '🃏',
       'Card Draw',
-      `${pname(loserIdx)} drew ${r}${s} — the lowest card. Dinner's on you! 🍽️`
+      `${pname(loserIdx)} drew ${r}${s} — the lowest card. Dinner's on you! 🍽️`, loserIdx
     );
   }, 1200);
 }
@@ -1084,13 +1121,14 @@ function ploEvaluate(hole,board){
 function ploShuffle(){const deck=[];for(let suit=0;suit<4;suit++)for(let rank=2;rank<=14;rank++)deck.push({rank,suit});for(let i=51;i>0;i--){const j=randomFingerIndex(i+1);[deck[i],deck[j]]=[deck[j],deck[i]];}return deck;}
 function ploNames(n){return Array.from({length:n},(_,i)=>i<players.length?pname(i):`Player ${i+1}`);}
 function previewPloNames(){document.getElementById('ploRoster').textContent=ploNames(Number(document.getElementById('ploCount').value)).join(' · ');}
-function startPlo(){backTarget='screen-lobby';showScreen('screen-plo');plo={phase:'setup'};document.getElementById('ploCount').value=String(Math.max(2,Math.min(8,players.length)));document.getElementById('ploSetup').hidden=false;document.getElementById('ploTable').hidden=true;document.getElementById('ploNew').hidden=true;document.getElementById('ploStatus').textContent='Choose your seats, then deal.';previewPloNames();}
+function startPlo(){
+ document.getElementById('ploScore').hidden=true;backTarget='screen-lobby';showScreen('screen-plo');plo={phase:'setup'};document.getElementById('ploCount').value=String(Math.max(2,Math.min(8,players.length)));document.getElementById('ploSetup').hidden=false;document.getElementById('ploTable').hidden=true;document.getElementById('ploNew').hidden=true;document.getElementById('ploStatus').textContent='Choose your seats, then deal.';previewPloNames();}
 function ploCardHTML(id){return `<button id="${id}" class="plo-card undealt" disabled aria-label="Hidden card"><span class="plo-inner"><span class="plo-face plo-back">♠</span><span class="plo-face plo-front"></span></span></button>`;}
 function ploFace(id,card){const node=document.getElementById(id),face=node.querySelector('.plo-front');const rank=({11:'J',12:'Q',13:'K',14:'A'})[card.rank]||String(card.rank);face.textContent=rank+' '+PLO_SUITS[card.suit];face.classList.toggle('red',card.suit===1||card.suit===2);node.classList.add('revealed');node.setAttribute('aria-label',rank+' of '+['spades','hearts','diamonds','clubs'][card.suit]);}
 function dealPlo(){
  if(!document.getElementById('screen-plo').classList.contains('active')||!['setup','showdown'].includes(plo.phase))return;
  cancelPending();const n=Number(document.getElementById('ploCount').value);if(!Number.isInteger(n)||n<2||n>8)return;
- const deck=ploShuffle();plo={phase:'dealing',names:ploNames(n),hands:Array.from({length:n},()=>[]),board:[],revealed:Array.from({length:n},()=>Array(4).fill(false)),count:0};
+ document.getElementById('ploScore').hidden=true;const deck=ploShuffle();plo={phase:'dealing',names:ploNames(n),hands:Array.from({length:n},()=>[]),board:[],revealed:Array.from({length:n},()=>Array(4).fill(false)),count:0};
  for(let c=0;c<4;c++)for(let i=0;i<n;i++)plo.hands[i].push(deck.pop());
  deck.pop();plo.board.push(deck.pop(),deck.pop(),deck.pop());deck.pop();plo.board.push(deck.pop());deck.pop();plo.board.push(deck.pop());
  document.getElementById('ploSetup').hidden=true;document.getElementById('ploTable').hidden=false;document.getElementById('ploNew').hidden=true;document.getElementById('ploStatus').textContent='Dealing four cards to every player…';
@@ -1111,6 +1149,7 @@ function revealPlo(i,c){
 function finishPlo(){
  if(!document.getElementById('screen-plo').classList.contains('active')||plo.phase!=='settling')return;plo.phase='showdown';const results=plo.hands.map(h=>ploEvaluate(h,plo.board));let best=results[0].score;for(const r of results)if(ploCompare(r.score,best)>0)best=r.score;
  const winners=[];results.forEach((r,i)=>{const wins=ploCompare(r.score,best)===0;if(wins)winners.push(plo.names[i]);document.getElementById('plo-seat-'+i).classList.toggle('winner',wins);document.getElementById('plo-strength-'+i).textContent=(wins?'🏆 ':'')+r.category+' · '+r.cards.map(c=>(( {11:'J',12:'Q',13:'K',14:'A'} )[c.rank]||c.rank)+PLO_SUITS[c.suit]).join(' ');});
+ scoreCapture('PLO Showdown',plo.names,results.map(r=>winners.length===plo.names.length?'tie':ploCompare(r.score,best)===0?'win':'loss'));document.getElementById('ploScore').hidden=false;
  document.getElementById('ploStatus').textContent=winners.length===1?`🏆 ${winners[0]} wins!`:`🤝 Shared win: ${winners.join(' & ')}`;document.getElementById('ploNew').hidden=false;window.scrollTo(0,0);tone(784,'sine',.25,.12);
 }
 
@@ -1207,7 +1246,7 @@ function chooseFinger() {
 function confirmFinger(index) {
   if (!finger.active || finger.phase !== 'chosen' || finger.points.size || !players[index]) return;
   const name = pname(index);
-  showElim(name, '👆', 'Finger Pick', `${name}'s finger was chosen. Dinner's on you! 🍽️`);
+  showElim(name, '👆', 'Finger Pick', `${name}'s finger was chosen. Dinner's on you! 🍽️`, index);
 }
 fingerPad.addEventListener('pointerdown', event => {
   if (event.pointerType !== 'touch') return;
@@ -1263,6 +1302,115 @@ document.addEventListener('visibilitychange', () => {
 // ─────────────────────────────────────────────
 //  BOOT
 // ─────────────────────────────────────────────
+// Shared leaderboard: capability-authenticated server API; no database keys here.
+const SCORE_API='https://jwceragcqobmveqsplbf.supabase.co/functions/v1/leaderboard';
+const SCORE_GROUP='9ec5ed37-d818-4bb5-a290-bdd17e8bd74c';
+let scoreKey='',scoreOwner=false,scoreLatest=null,scoreEditing=null,scoreBusy=false,scoreLoad=0;
+let scoreDinner='',scoreDrafts=[];
+function scoreId(){return crypto.randomUUID();}
+function scoreName(value){return value.normalize('NFC').trim().replace(/\s+/gu,' ');}
+function scoreCents(value){
+ const s=String(value).trim();if(!/^(0|[1-9]\d{0,6})(\.\d{1,2})?$/.test(s))throw Error('Enter an amount such as 24.50, without a currency symbol.');
+ const [whole,fraction='']=s.split('.');const cents=Number(whole)*100+Number(fraction.padEnd(2,'0'));
+ if(cents>100000000)throw Error('Amount must be at most $1,000,000.');return cents;
+}
+function scoreMoney(cents){return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(cents/100);}
+function scoreMessage(message){document.getElementById('scoreMessage').textContent=message;}
+function scorePersist(){saveSetting('whopays-score-drafts',JSON.stringify(scoreDrafts));saveSetting('whopays-score-dinner',scoreDinner);}
+function scoreInit(){
+ try {scoreKey=sessionStorage.getItem('whopays-group-key')||'';}catch{}
+ try {const d=JSON.parse(readSetting('whopays-score-drafts'));if(Array.isArray(d))scoreDrafts=d.filter(x=>x&&typeof x.id==='string'&&Array.isArray(x.entries));}catch{}
+ scoreDinner=readSetting('whopays-score-dinner')||scoreId();
+ // Group keys enter through the fragment, never the query string or a server request.
+ if(typeof location!=='undefined' && location.hash.startsWith('#group-key=')){
+   const key=location.hash.slice(11);history.replaceState(null,'',location.pathname+location.search);
+   if(/^[0-9a-f]{64}$/.test(key)){scoreKey=key;try{sessionStorage.setItem('whopays-group-key',key);}catch{}}
+ }
+ scorePersist();
+}
+async function scoreRequest(action,data={},key=scoreKey){
+ if(!/^[0-9a-f]{64}$/.test(key))throw Error('Open Leaderboard and enter your private group code first.');
+ const controller=new AbortController();const timeout=window.setTimeout(()=>controller.abort(),15000);
+ try{
+  const response=await fetch(SCORE_API,{method:'POST',headers:{'Content-Type':'application/json','X-Group-Key':key},body:JSON.stringify({group:SCORE_GROUP,action,data}),signal:controller.signal,credentials:'omit',referrerPolicy:'no-referrer'});
+  const body=await response.json();if(!response.ok||body.error)throw Error(body.error||'Save failed. Please retry.');return body;
+ }catch(error){if(error.name==='AbortError'||error instanceof TypeError)throw Error('Connection interrupted. Retry to check/save the same round without duplicates.');throw error;}
+ finally{window.clearTimeout(timeout);}
+}
+function scoreCapture(game,names,outcomes){
+ const draft={id:scoreId(),dinner_id:scoreDinner,game,entries:names.map((name,i)=>({name,outcome:outcomes[i],cents:0})),saved:false};
+ scoreDrafts.push(draft);scoreLatest=draft.id;scorePersist();return draft.id;
+}
+function scoreCaptureDinner(name,game,loserIndex){
+ const names=players.map((_,i)=>pname(i));const loser=Number.isInteger(loserIndex)?loserIndex:names.indexOf(name);
+ scoreCapture(game,names,names.map((_,i)=>i===loser?'loss':'win'));
+}
+function openScoreRecord(id=scoreLatest){
+ const draft=scoreDrafts.find(x=>x.id===id);if(!draft)return;
+ scoreEditing=draft.id;backTarget=draft.game==='PLO Showdown'?'screen-plo':'screen-elim';showScreen('screen-score-record');
+ document.getElementById('scoreRecordTitle').textContent=draft.game;
+ document.getElementById('scoreRecordStatus').textContent=draft.saved?'Saved to your shared leaderboard.':draft.payload?'Retry will send the same details safely.':'Confirm names and enter the amount each loser paid (USD). Use 0 for a score-only round.';
+ document.getElementById('scoreRecordFields').innerHTML=draft.entries.map((e,i)=>`<div class="score-entry"><label for="score-name-${i}">Player ${i+1} · ${esc(e.outcome)}</label><input id="score-name-${i}" maxlength="40" value="${esc(e.name)}" ${draft.saved||draft.payload?'disabled':''}>${e.outcome==='loss'?`<label for="score-cents-${i}">Amount lost · USD</label><input id="score-cents-${i}" inputmode="decimal" value="${(e.cents/100).toFixed(2)}" ${draft.saved||draft.payload?'disabled':''}>`:''}</div>`).join('');
+ document.getElementById('scoreSave').disabled=draft.saved||scoreBusy;
+ document.getElementById('scoreSave').textContent=draft.saved?'Saved ✓':draft.payload?'Retry save':'Save score & amount';
+}
+async function saveScoreRound(){
+ if(scoreBusy)return;const draft=scoreDrafts.find(x=>x.id===scoreEditing);if(!draft||draft.saved)return;
+ const status=document.getElementById('scoreRecordStatus');
+ try{
+  if(!scoreKey)throw Error('Connect your group in Leaderboard first. This result is kept under Unsaved rounds.');
+  if(!draft.payload){
+   const keys=new Set();const entries=draft.entries.map((e,i)=>{
+    const name=scoreName(document.getElementById('score-name-'+i).value);
+    if(!name||name.length>40||/[\u0000-\u001f\u007f]/u.test(name))throw Error('Enter a name of 1–40 characters for every player.');
+    const key=name.toLowerCase();if(keys.has(key))throw Error('Two players share a name. Add an initial so their scores stay separate.');keys.add(key);
+    return {name,outcome:e.outcome,cents:e.outcome==='loss'?scoreCents(document.getElementById('score-cents-'+i).value):0};
+   });
+   draft.entries=entries;draft.payload={id:draft.id,dinner_id:draft.dinner_id,game:draft.game,entries,replaces:draft.replaces||null};scorePersist();
+  }
+  scoreBusy=true;document.getElementById('scoreSave').disabled=true;status.textContent='Saving…';
+  await scoreRequest('record',draft.payload);draft.saved=true;scorePersist();if(scoreEditing===draft.id)status.textContent='Saved to your shared leaderboard ✓';
+ }catch(error){if(scoreEditing===draft.id)status.textContent=error.message;}
+ finally{scoreBusy=false;const current=scoreDrafts.find(x=>x.id===scoreEditing);if(current){document.getElementById('scoreSave').disabled=current.saved;document.getElementById('scoreSave').textContent=current.saved?'Saved ✓':current.payload?'Retry save':'Save score & amount';}}
+}
+function openLeaderboard(){backTarget='screen-lobby';showScreen('screen-leaderboard');renderScoreDrafts();document.getElementById('scoreConnect').hidden=!!scoreKey;document.getElementById('scoreConnected').hidden=!scoreKey;if(scoreKey)loadLeaderboard();else scoreMessage('Join your dinner group to see shared scores.');}
+async function connectScoreGroup(){
+ const key=document.getElementById('scoreCode').value.trim();
+ try {await scoreRequest('read',{},key);scoreKey=key;try{sessionStorage.setItem('whopays-group-key',key);}catch{}document.getElementById('scoreCode').value='';openLeaderboard();}catch(error){scoreMessage(error.message);}
+}
+function disconnectScoreGroup(){scoreLoad++;scoreKey='';scoreOwner=false;try{sessionStorage.removeItem('whopays-group-key');}catch{}document.getElementById('scoreBoard').replaceChildren();document.getElementById('scoreHistory').replaceChildren();document.getElementById('scoreOwnerTools').hidden=true;document.getElementById('scoreInvite').textContent='';openLeaderboard();}
+function renderScoreDrafts(){
+ const drafts=scoreDrafts.filter(x=>!x.saved);
+ const root=document.getElementById('scoreDrafts');root.replaceChildren();
+ for(const draft of drafts){const button=document.createElement('button');button.className='btn btn-ghost btn-full';button.textContent=draft.game+' · '+draft.entries.map(e=>e.name).join(', ');button.addEventListener('click',()=>openScoreRecord(draft.id));root.appendChild(button);const discard=document.createElement('button');discard.className='btn btn-ghost btn-sm';discard.textContent='Discard local draft';discard.addEventListener('click',()=>{if(scoreBusy)return;if(!confirm('Discard this local draft? This does not remove a round already saved on the server. Check recent rounds if a save was interrupted.'))return;scoreDrafts=scoreDrafts.filter(x=>x.id!==draft.id);scorePersist();renderScoreDrafts();});root.appendChild(discard);}
+ document.getElementById('scoreDraftCount').textContent=drafts.length?'Unsaved rounds ('+drafts.length+')':'No unsaved rounds';
+}
+async function loadLeaderboard(){
+ const request=++scoreLoad;const key=scoreKey;scoreMessage('Loading shared scores…');
+ try{
+  const mode=document.getElementById('scoreMode').value||'dinner';const scope=document.getElementById('scoreScope').value;
+  const data=await scoreRequest('read',{mode,dinner_id:scope==='dinner'?scoreDinner:null},key);
+  if(request!==scoreLoad||key!==scoreKey)return;
+  scoreOwner=data.owner;document.getElementById('scoreOwnerTools').hidden=!scoreOwner;
+  const board=[...data.board];const sort=document.getElementById('scoreSort').value||'losses';board.sort((a,b)=>b[sort]-a[sort]||a.name.localeCompare(b.name));
+  document.getElementById('scoreBoard').innerHTML=board.length?`<div class="score-table-wrap"><table class="score-table"><thead><tr><th>Name</th><th>Wins</th><th>Losses</th><th>Paid</th></tr></thead><tbody>${board.map(p=>`<tr><th>${esc(p.name)}${p.ties?`<small>${p.ties} tied</small>`:''}</th><td>${p.wins}</td><td>${p.losses}</td><td>${scoreMoney(p.cents)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="plo-note">No saved rounds in this view yet.</p>';
+  const root=document.getElementById('scoreHistory');root.replaceChildren();
+  for(const round of data.recent){const row=document.createElement('div');row.className='score-entry';const text=document.createElement('p');text.textContent=round.game+' · '+new Date(round.created_at).toLocaleString()+' · '+round.entries.map(e=>e.name+': '+e.outcome+(e.outcome==='loss'?' '+scoreMoney(e.cents):'')).join(' / ')+(round.voided_at?' · VOIDED':'');row.appendChild(text);
+   if(scoreOwner&&!round.voided_at){const button=document.createElement('button');button.className='btn btn-ghost btn-sm';button.textContent='Void incorrect round';button.addEventListener('click',()=>voidScoreRound(round.id));row.appendChild(button);const edit=document.createElement('button');edit.className='btn btn-ghost btn-sm';edit.textContent='Correct result';edit.addEventListener('click',()=>correctScoreRound(round));row.appendChild(edit);}root.appendChild(row);}
+  scoreMessage(data.name+' · Shared across phones · USD');
+ }catch(error){if(request===scoreLoad)scoreMessage(error.message);}
+}
+function correctScoreRound(round){const draft={id:scoreId(),dinner_id:round.dinner_id,game:round.game,entries:round.entries.map(e=>({name:e.name,outcome:e.outcome,cents:e.cents})),replaces:round.id,saved:false};scoreDrafts.push(draft);scorePersist();openScoreRecord(draft.id);}
+async function voidScoreRound(id){if(!confirm('Void this round? It will remain in history but stop counting toward totals.'))return;try{await scoreRequest('void',{id});await loadLeaderboard();}catch(error){scoreMessage(error.message);}}
+function newScoreDinner(){if(!confirm('Start a new dinner on this phone? All-time scores and unsaved rounds will remain.'))return;scoreDinner=scoreId();scorePersist();loadLeaderboard();}
+async function rotateScoreInvite(){
+ if(!confirm('Replace the group code? Friends using the old code will need the new one. Your owner access stays unchanged.'))return;
+ const bytes=crypto.getRandomValues(new Uint8Array(32));const key=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+ const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(key))),b=>b.toString(16).padStart(2,'0')).join('');
+ try {await scoreRequest('rotate',{member_hash:hash});document.getElementById('scoreInvite').textContent='New group code (share only with your friends): '+key;scoreMessage('Old group code revoked. Copy the new code below.');}catch(error){scoreMessage(error.message);}
+}
+
+scoreInit();
 let savedPlayers;
 try { savedPlayers = JSON.parse(readSetting('whopays-players')); } catch {}
 if (Array.isArray(savedPlayers) && savedPlayers.length >= 2 && savedPlayers.length <= 8 && savedPlayers.every(n => typeof n === 'string')) {
